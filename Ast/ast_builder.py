@@ -142,13 +142,13 @@ class ASTBuilder(MizanVisitor):
         
         # جلب النص العربي الأصلي المكتوب في الكود ديناميكياً
         if ctx.BOOL_T(): 
-            t_name = ctx.BOOL_T().getText()     # ستجلب "منطقي" 
+            t_name = ctx.BOOL_T().getText()     # print("منطقي") 
         elif ctx.INT_T(): 
-            t_name = ctx.INT_T().getText()      # ستجلب "صحيح"
+            t_name = ctx.INT_T().getText()      # print("عدد صحيح")
         elif ctx.FLOAT_T(): 
-            t_name = ctx.FLOAT_T().getText()    # ستجلب "عشري"
+            t_name = ctx.FLOAT_T().getText()    # print("عدد عشري")
         elif ctx.unitType(): 
-            t_name = ctx.unitType().getText()   # ستجلب "سيلزيوس" أو غيرها
+            t_name = ctx.unitType().getText()   # print("سيلزيوس" أو غيرها)
             
         return BaseTypeNode(line=ctx.start.line, column=ctx.start.column, type_name=t_name)
 
@@ -200,21 +200,17 @@ class ASTBuilder(MizanVisitor):
     # تصحيح دالة الاستدعاء الشرطي لتجنب تداخل الـ Blocks
     def visitIfStmt(self, ctx: MizanParser.IfStmtContext):
         condition = self.visit(ctx.condition())
-        # ANTLR يعطي قائمة من كل الـ statements التابعة لقواعد الـ Parser بالترتيب
-        all_stmts = [self.visit(s) for s in ctx.statement()]
-        
-        # معالجة دقيقة مستندة لقواعد القواعد (إما حزمة واحدة أو حزمتين عند وجود والا)
         if ctx.ELSE_KW():
-            # إذا وجدت كتلتي بيان، فالقواعد تضمن فصلهما عبر بناء الجملة المكتوب بالـ Grammar
-            # نظراً لعدم وجود حدود واضحة في كودك المبدئي، هنا نفصل بناء على عدد الـ Blocks الإجمالي المتوقع
-            half = len(all_stmts) // 2
-            then_branch = all_stmts[:half]
-            else_branch = all_stmts[half:]
+            else_token_idx = ctx.ELSE_KW().symbol.tokenIndex
+            then_branch = [self.visit(s) for s in ctx.statement()
+                        if s.start.tokenIndex < else_token_idx]
+            else_branch  = [self.visit(s) for s in ctx.statement()
+                        if s.start.tokenIndex > else_token_idx]
         else:
-            then_branch = all_stmts
+            then_branch = [self.visit(s) for s in ctx.statement()]
             else_branch = []
-            
-        return IfStmtNode(line=ctx.start.line, column=ctx.start.column, condition=condition, then_branch=then_branch, else_branch=else_branch)
+        return IfStmtNode(line=ctx.start.line, column=ctx.start.column, condition=condition,
+                          then_branch=then_branch, else_branch=else_branch)
 
     def visitWhileStmt(self, ctx: MizanParser.WhileStmtContext):
         body = [self.visit(s) for s in ctx.statement()]
@@ -291,7 +287,12 @@ class ASTBuilder(MizanVisitor):
         return ProcCallExprNode(line=ctx.start.line, column=ctx.start.column, identifier=ctx.ID().getText(), arguments=args)
 
     def visitNumLit(self, ctx: MizanParser.NumLitContext):
-        return NumberLiteralNode(line=ctx.start.line, column=ctx.start.column, value=float(ctx.NUMBER().getText()))
+        text = ctx.NUMBER().getText()
+        if '.' in text or 'e' in text.lower():
+            value = float(text)
+        else:
+            value = int(text)
+        return NumberLiteralNode(line=ctx.start.line, column=ctx.start.column, value=value)
 
     def visitStrLit(self, ctx: MizanParser.StrLitContext):
         return StringLiteralNode(line=ctx.start.line, column=ctx.start.column, value=ctx.STRING_LIT().getText().strip('"'))
@@ -335,7 +336,7 @@ class ASTBuilder(MizanVisitor):
 
     def visitScheduleSpec(self, ctx: MizanParser.ScheduleSpecContext):
         freq = 'DAILY' if ctx.DAILY_KW() else 'WEEKLY'
-        day = ctx.getChild(1).getText() if ctx.WEEKLY_KW() else None
+        day = ctx.STRING_LIT(0).getText().strip('"') if ctx.WEEKLY_KW() else None
         time_str = ctx.STRING_LIT(1).getText().strip('"') if ctx.WEEKLY_KW() else ctx.STRING_LIT(0).getText().strip('"')
         return ScheduleSpecNode(line=ctx.start.line, column=ctx.start.column, frequency=freq, day=day, time=time_str)
 
@@ -343,7 +344,7 @@ class ASTBuilder(MizanVisitor):
         title = ctx.STRING_LIT().getText().strip('"')
         duration = self.visit(ctx.duration()) if ctx.duration() else None
         identifier = ctx.ID().getText() if ctx.ID() else None
-        
+        func_name = ctx.aggFunc().getText() if ctx.aggFunc() else None
         if ctx.aggFunc(): kind = 'AGGREGATE'
         elif ctx.INSTANT_VAL_KW(): kind = 'INSTANT'
         elif ctx.ALERT_COUNT_KW(): kind = 'ALERT_COUNT'
@@ -351,14 +352,14 @@ class ASTBuilder(MizanVisitor):
         elif ctx.CURRENT_MODE_KW(): kind = 'CURRENT_MODE'
         elif ctx.TIMESTAMP_KW(): kind = 'TIMESTAMP'
         
-        return ReportItemNode(line=ctx.start.line, column=ctx.start.column, kind=kind, title=title, identifier=identifier, duration=duration)
+        return ReportItemNode(line=ctx.start.line, column=ctx.start.column, kind=kind, function_name=func_name, title=title, identifier=identifier, duration=duration)
 
     # ── جداول الانتقال الحالية (FSM Transitions) ───────────────────
     def visitTransitionTable(self, ctx: MizanParser.TransitionTableContext):
         rules = [self.visit(r) for r in ctx.transitionRule()]
         return TransitionTableNode(line=ctx.start.line, column=ctx.start.column, rules=rules)
 
-    def transitionRule(self, ctx: MizanParser.TransitionRuleContext):
+    def visitTransitionRule(self, ctx: MizanParser.TransitionRuleContext):
         return TransitionRuleNode(line=ctx.start.line, column=ctx.start.column, from_mode=ctx.modeName(0).getText(), to_mode=ctx.modeName(1).getText())
 
     # ── دوال الوقت المساعدة ─────────────────────────────────────────

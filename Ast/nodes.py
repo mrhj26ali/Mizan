@@ -104,6 +104,8 @@ class BaseTypeNode(ASTNode):
     def accept(self, visitor: ASTVisitor):
         return visitor.visit_BaseTypeNode(self)
 
+    def __str__(self):
+        return self.type_name
 @dataclass
 class ArrayTypeNode(ASTNode):
     element_type: ASTNode
@@ -473,7 +475,15 @@ class EscalationDefNode(ASTNode):
     def accept(self, visitor: ASTVisitor):
         return visitor.visit_EscalationDefNode(self)
 
+@dataclass
+class EscalationActionNode(ASTNode):
+    kind: str  # 'GOTO' or 'EXEC_PROC'
+    target: str  # level name or procedure ID
+    arguments: List[ASTNode]  # empty for GOTO
 
+    def accept(self, visitor: ASTVisitor):
+        return visitor.visit_EscalationActionNode(self)
+    
 # =====================================================================
 # INDUSTRIAL DATA REPORTING SUBSYSTEM
 # =====================================================================
@@ -501,7 +511,7 @@ class ReportItemNode(ASTNode):
     title: str
     identifier: Optional[str]
     duration: Optional[DurationNode]
-
+    function_name: Optional[str] = None 
     def accept(self, visitor: ASTVisitor):
         return visitor.visit_ReportItemNode(self)
 
