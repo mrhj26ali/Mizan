@@ -1,36 +1,60 @@
 import sys
+import traceback
 from antlr4 import *
 from Mizan.Frontend.MizanLexer import MizanLexer
 from Mizan.Frontend.MizanParser import MizanParser
 from Mizan.Ast.ast_builder import ASTBuilder
-from Mizan.Frontend.ast_visualizer import ASTVisualizerVisitor
-from Mizan.Utils.text_utils import normalize_mizan_code 
+from Mizan.semantic.semantic_analyzer import SemanticAnalyzer
+
+
+from antlr4.error.ErrorListener import ErrorListener
+
+class MizanErrorListener(ErrorListener):
+    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+        # استخراج الكلمة التي سببت الخطأ
+        offending_text = offendingSymbol.text if offendingSymbol else "رمز غير معروف"
+        print(f"❌ [خطأ نحوي] في السطر {line}:{column} -> الكلمة '{offending_text}' غير متوقعة.")
+        # اختياري: إيقاف المترجم إذا حدث خطأ نحوي
+        # raise Exception("توقف التحليل بسبب خطأ نحوي.")
+
+# داخل دالة main في run_test.py:
+# parser = MizanParser(stream)
+# parser.removeErrorListeners() # إزالة المستمع الافتراضي المزعج
+# parser.addErrorListener(MizanErrorListener()) # إضافة مستمعنا الجديد
 
 def main():
-    # 1. قراءة الملف
     file_path = "Mizan/Mizan.arabic"
-    with open(file_path, "r", encoding="utf-8") as f:
-        raw_code = f.read()
+    try:
+        # 1. إعداد الـ InputStream الخاص بـ ANTLR
+        input_stream = FileStream(file_path, encoding='utf-8')
+        
+        # 2. إعداد Lexer و TokenStream
+        lexer = MizanLexer(input_stream)
+        stream = CommonTokenStream(lexer)
+        
+        # 3. إعداد Parser
+        parser = MizanParser(stream)
+        parser.addErrorListener(MizanErrorListener()) # إضافة مستمعنا الجديد        # 4. استدعاء القاعدة الجذرية (تأكد أن اسمها 'program' في ملف القواعد .g4)
+        tree = parser.program() 
+        
+        # 5. بناء الـ AST باستخدام الـ Builder الخاص بك
+        builder = ASTBuilder()
+        ast = builder.visit(tree)
+        print("✅ تم بناء الـ AST بنجاح!")
 
-    processed_code = normalize_mizan_code(raw_code)
-    input_stream = InputStream(processed_code)
-    # 2. إعداد الـ Lexer والـ Parser
-    lexer = MizanLexer(input_stream)
-    token_stream = CommonTokenStream(lexer)
-    parser = MizanParser(token_stream)
-    
-    # 3. بناء الـ Parse Tree
-    parse_tree = parser.program()
-    
-    # 4. بناء الـ AST المخصصة
-    builder = ASTBuilder()
-    ast = builder.visit(parse_tree)
-    print("✅ تم بناء الـ AST بنجاح! جاري توليد الرسم الهندسي...")
+        # 6. التحليل الدلالي
+        analyzer = SemanticAnalyzer()
+        analyzer.visit(ast)
+        # اطبع تقرير التحليل الدلالي الكامل (يشمل الأخطاء والتحذيرات)
+        analyzer.print_report()
 
-    # 5. رسم الشجرة
-    visualizer = ASTVisualizerVisitor()
-    visualizer.render(ast, 'my_arabic_ast') 
-    print("🎨 تم حفظ الرسم في ملف: my_arabic_ast.png")
+        # 7. تقرير النطاقات (طباعة مفصّلة للـ scope الحالي إذا رغبت)
+        print("\n--- تقرير النطاقات الكامل ---")
+        analyzer.current_scope.print_node()
 
-if __name__ == '__main__':
+    except Exception:
+        print(f"❌ حدث خطأ أثناء المعالجة:")
+        traceback.print_exc()
+
+if __name__ == "__main__":
     main()
