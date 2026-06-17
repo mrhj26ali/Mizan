@@ -263,10 +263,18 @@ def types_compatible(declared: Type, actual: Type) -> bool:
     يتحقق من توافق نوعَين للإسناد والتهيئة.
     - النوعان يجب أن يتطابقا تمامًا.
     - ErrorType متوافق مع أي شيء (لوقف تسلسل الأخطاء).
+    - يسمح بالترقية الضمنية من صحيح إلى حقيقي (Implicit Widening).
     """
     if isinstance(declared, ErrorType) or isinstance(actual, ErrorType):
         return True
-    return declared == actual
+    if declared == actual:
+        return True
+    
+    # ✅ FIX: Allow implicit widening from INT to FLOAT
+    if isinstance(declared, FloatType) and isinstance(actual, IntType):
+        return True
+        
+    return False
 
 
 def type_from_name(name: str) -> Type:
