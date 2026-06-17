@@ -244,14 +244,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_program; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterProgram(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitProgram(this);
-		}
 	}
 
 	public final ProgramContext program() throws RecognitionException {
@@ -335,14 +327,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_topLevelDecl; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterTopLevelDecl(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitTopLevelDecl(this);
-		}
 	}
 
 	public final TopLevelDeclContext topLevelDecl() throws RecognitionException {
@@ -467,14 +451,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_programDecl; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterProgramDecl(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitProgramDecl(this);
-		}
 	}
 
 	public final ProgramDeclContext programDecl() throws RecognitionException {
@@ -525,14 +501,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_deviceBlock; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterDeviceBlock(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitDeviceBlock(this);
-		}
 	}
 
 	public final DeviceBlockContext deviceBlock() throws RecognitionException {
@@ -602,14 +570,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_deviceField; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterDeviceField(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitDeviceField(this);
-		}
 	}
 
 	public final DeviceFieldContext deviceField() throws RecognitionException {
@@ -733,14 +693,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_customUnitsBlock; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterCustomUnitsBlock(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitCustomUnitsBlock(this);
-		}
 	}
 
 	public final CustomUnitsBlockContext customUnitsBlock() throws RecognitionException {
@@ -800,14 +752,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_customUnitDef; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterCustomUnitDef(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitCustomUnitDef(this);
-		}
 	}
 
 	public final CustomUnitDefContext customUnitDef() throws RecognitionException {
@@ -855,14 +799,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_dimensionExpr; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterDimensionExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitDimensionExpr(this);
-		}
 	}
 
 	public final DimensionExprContext dimensionExpr() throws RecognitionException {
@@ -927,14 +863,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_baseDim; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterBaseDim(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitBaseDim(this);
-		}
 	}
 
 	public final BaseDimContext baseDim() throws RecognitionException {
@@ -984,14 +912,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_customModesBlock; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterCustomModesBlock(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitCustomModesBlock(this);
-		}
 	}
 
 	public final CustomModesBlockContext customModesBlock() throws RecognitionException {
@@ -1061,14 +981,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_sensorDecl; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterSensorDecl(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitSensorDecl(this);
-		}
 	}
 
 	public final SensorDeclContext sensorDecl() throws RecognitionException {
@@ -1151,14 +1063,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_sensorField; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterSensorField(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitSensorField(this);
-		}
 	}
 
 	public final SensorFieldContext sensorField() throws RecognitionException {
@@ -1269,14 +1173,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_actuatorDecl; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterActuatorDecl(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitActuatorDecl(this);
-		}
 	}
 
 	public final ActuatorDeclContext actuatorDecl() throws RecognitionException {
@@ -1344,14 +1240,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_actuatorField; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterActuatorField(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitActuatorField(this);
-		}
 	}
 
 	public final ActuatorFieldContext actuatorField() throws RecognitionException {
@@ -1426,14 +1314,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_varDecl; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterVarDecl(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitVarDecl(this);
-		}
 	}
 
 	public final VarDeclContext varDecl() throws RecognitionException {
@@ -1486,14 +1366,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_constDecl; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterConstDecl(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitConstDecl(this);
-		}
 	}
 
 	public final ConstDeclContext constDecl() throws RecognitionException {
@@ -1547,14 +1419,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_varType; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterVarType(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitVarType(this);
-		}
 	}
 
 	public final VarTypeContext varType() throws RecognitionException {
@@ -1668,14 +1532,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_rangeSpec; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterRangeSpec(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitRangeSpec(this);
-		}
 	}
 
 	public final RangeSpecContext rangeSpec() throws RecognitionException {
@@ -1732,14 +1588,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_procedureDef; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterProcedureDef(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitProcedureDef(this);
-		}
 	}
 
 	public final ProcedureDefContext procedureDef() throws RecognitionException {
@@ -1826,14 +1674,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_paramList; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterParamList(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitParamList(this);
-		}
 	}
 
 	public final ParamListContext paramList() throws RecognitionException {
@@ -1885,14 +1725,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_param; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterParam(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitParam(this);
-		}
 	}
 
 	public final ParamContext param() throws RecognitionException {
@@ -1941,14 +1773,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_modeBlock; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterModeBlock(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitModeBlock(this);
-		}
 	}
 
 	public final ModeBlockContext modeBlock() throws RecognitionException {
@@ -2014,14 +1838,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_modeName; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterModeName(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitModeName(this);
-		}
 	}
 
 	public final ModeNameContext modeName() throws RecognitionException {
@@ -2069,14 +1885,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_onStartBlock; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterOnStartBlock(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitOnStartBlock(this);
-		}
 	}
 
 	public final OnStartBlockContext onStartBlock() throws RecognitionException {
@@ -2141,14 +1949,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_ruleBlock; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterRuleBlock(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitRuleBlock(this);
-		}
 	}
 
 	public final RuleBlockContext ruleBlock() throws RecognitionException {
@@ -2212,14 +2012,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_localDecl; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterLocalDecl(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitLocalDecl(this);
-		}
 	}
 
 	public final LocalDeclContext localDecl() throws RecognitionException {
@@ -2277,14 +2069,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_conditionClause; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterConditionClause(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitConditionClause(this);
-		}
 	}
 
 	public final ConditionClauseContext conditionClause() throws RecognitionException {
@@ -2329,14 +2113,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_actionClause; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterActionClause(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitActionClause(this);
-		}
 	}
 
 	public final ActionClauseContext actionClause() throws RecognitionException {
@@ -2421,14 +2197,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_statement; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterStatement(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitStatement(this);
-		}
 	}
 
 	public final StatementContext statement() throws RecognitionException {
@@ -2548,14 +2316,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_commandStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterCommandStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitCommandStmt(this);
-		}
 	}
 
 	public final CommandStmtContext commandStmt() throws RecognitionException {
@@ -2602,14 +2362,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_actuatorValue; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterActuatorValue(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitActuatorValue(this);
-		}
 	}
 
 	public final ActuatorValueContext actuatorValue() throws RecognitionException {
@@ -2706,14 +2458,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_alertStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAlertStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAlertStmt(this);
-		}
 	}
 
 	public final AlertStmtContext alertStmt() throws RecognitionException {
@@ -2752,14 +2496,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_alertLevel; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAlertLevel(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAlertLevel(this);
-		}
 	}
 
 	public final AlertLevelContext alertLevel() throws RecognitionException {
@@ -2801,14 +2537,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_logStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterLogStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitLogStmt(this);
-		}
 	}
 
 	public final LogStmtContext logStmt() throws RecognitionException {
@@ -2851,14 +2579,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_execProcStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterExecProcStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitExecProcStmt(this);
-		}
 	}
 
 	public final ExecProcStmtContext execProcStmt() throws RecognitionException {
@@ -2914,14 +2634,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_gotoStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterGotoStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitGotoStmt(this);
-		}
 	}
 
 	public final GotoStmtContext gotoStmt() throws RecognitionException {
@@ -2960,14 +2672,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_waitStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterWaitStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitWaitStmt(this);
-		}
 	}
 
 	public final WaitStmtContext waitStmt() throws RecognitionException {
@@ -3012,14 +2716,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_assignStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAssignStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAssignStmt(this);
-		}
 	}
 
 	public final AssignStmtContext assignStmt() throws RecognitionException {
@@ -3074,14 +2770,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_defaultValStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterDefaultValStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitDefaultValStmt(this);
-		}
 	}
 
 	public final DefaultValStmtContext defaultValStmt() throws RecognitionException {
@@ -3121,14 +2809,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_exprStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterExprStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitExprStmt(this);
-		}
 	}
 
 	public final ExprStmtContext exprStmt() throws RecognitionException {
@@ -3181,14 +2861,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_ifStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterIfStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitIfStmt(this);
-		}
 	}
 
 	public final IfStmtContext ifStmt() throws RecognitionException {
@@ -3285,14 +2957,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_whileStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterWhileStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitWhileStmt(this);
-		}
 	}
 
 	public final WhileStmtContext whileStmt() throws RecognitionException {
@@ -3352,14 +3016,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_returnStmt; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterReturnStmt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitReturnStmt(this);
-		}
 	}
 
 	public final ReturnStmtContext returnStmt() throws RecognitionException {
@@ -3418,14 +3074,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(OrOperandContext.class,0);
 		}
 		public OrExprContext(ConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterOrExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitOrExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class OrPassContext extends ConditionContext {
@@ -3433,14 +3081,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(OrOperandContext.class,0);
 		}
 		public OrPassContext(ConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterOrPass(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitOrPass(this);
-		}
 	}
 
 	public final ConditionContext condition() throws RecognitionException {
@@ -3526,14 +3166,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(AndOperandContext.class,0);
 		}
 		public AndExprContext(OrOperandContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAndExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAndExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class AndPassContext extends OrOperandContext {
@@ -3541,14 +3173,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(AndOperandContext.class,0);
 		}
 		public AndPassContext(OrOperandContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAndPass(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAndPass(this);
-		}
 	}
 
 	public final OrOperandContext orOperand() throws RecognitionException {
@@ -3630,14 +3254,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(PrimaryConditionContext.class,0);
 		}
 		public PrimaryPassContext(AndOperandContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterPrimaryPass(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitPrimaryPass(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class NotExprContext extends AndOperandContext {
@@ -3646,14 +3262,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(AndOperandContext.class,0);
 		}
 		public NotExprContext(AndOperandContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterNotExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitNotExpr(this);
-		}
 	}
 
 	public final AndOperandContext andOperand() throws RecognitionException {
@@ -3727,14 +3335,6 @@ public class MizanParser extends Parser {
 	public static class FalseLitContext extends PrimaryConditionContext {
 		public TerminalNode KHTA() { return getToken(MizanParser.KHTA, 0); }
 		public FalseLitContext(PrimaryConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterFalseLit(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitFalseLit(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class CompExprContext extends PrimaryConditionContext {
@@ -3748,27 +3348,11 @@ public class MizanParser extends Parser {
 			return getRuleContext(CompOpContext.class,0);
 		}
 		public CompExprContext(PrimaryConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterCompExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitCompExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class TrueLitContext extends PrimaryConditionContext {
 		public TerminalNode SAH() { return getToken(MizanParser.SAH, 0); }
 		public TrueLitContext(PrimaryConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterTrueLit(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitTrueLit(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class TemporalExprContext extends PrimaryConditionContext {
@@ -3784,14 +3368,6 @@ public class MizanParser extends Parser {
 		}
 		public TerminalNode RPAREN() { return getToken(MizanParser.RPAREN, 0); }
 		public TemporalExprContext(PrimaryConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterTemporalExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitTemporalExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class VotingExprContext extends PrimaryConditionContext {
@@ -3808,14 +3384,6 @@ public class MizanParser extends Parser {
 		}
 		public TerminalNode RPAREN() { return getToken(MizanParser.RPAREN, 0); }
 		public VotingExprContext(PrimaryConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterVotingExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitVotingExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class ParenCondContext extends PrimaryConditionContext {
@@ -3825,27 +3393,11 @@ public class MizanParser extends Parser {
 		}
 		public TerminalNode RPAREN() { return getToken(MizanParser.RPAREN, 0); }
 		public ParenCondContext(PrimaryConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterParenCond(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitParenCond(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class BoolVarContext extends PrimaryConditionContext {
 		public TerminalNode ID() { return getToken(MizanParser.ID, 0); }
 		public BoolVarContext(PrimaryConditionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterBoolVar(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitBoolVar(this);
-		}
 	}
 
 	public final PrimaryConditionContext primaryCondition() throws RecognitionException {
@@ -3974,14 +3526,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_comparisonList; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterComparisonList(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitComparisonList(this);
-		}
 	}
 
 	public final ComparisonListContext comparisonList() throws RecognitionException {
@@ -4037,14 +3581,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_comparison; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterComparison(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitComparison(this);
-		}
 	}
 
 	public final ComparisonContext comparison() throws RecognitionException {
@@ -4084,14 +3620,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_compOp; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterCompOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitCompOp(this);
-		}
 	}
 
 	public final CompOpContext compOp() throws RecognitionException {
@@ -4142,14 +3670,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(AggregateExprContext.class,0);
 		}
 		public AggExprContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAggExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAggExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class VarOrArrayExprContext extends ExprContext {
@@ -4160,14 +3680,6 @@ public class MizanParser extends Parser {
 		}
 		public TerminalNode RBRACKET() { return getToken(MizanParser.RBRACKET, 0); }
 		public VarOrArrayExprContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterVarOrArrayExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitVarOrArrayExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class MulDivExprContext extends ExprContext {
@@ -4182,14 +3694,6 @@ public class MizanParser extends Parser {
 		public TerminalNode DIV() { return getToken(MizanParser.DIV, 0); }
 		public TerminalNode MOD() { return getToken(MizanParser.MOD, 0); }
 		public MulDivExprContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterMulDivExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitMulDivExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class ProcCallExprContext extends ExprContext {
@@ -4202,14 +3706,6 @@ public class MizanParser extends Parser {
 			return getRuleContext(ArgListContext.class,0);
 		}
 		public ProcCallExprContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterProcCallExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitProcCallExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class ParenExprContext extends ExprContext {
@@ -4219,27 +3715,11 @@ public class MizanParser extends Parser {
 		}
 		public TerminalNode RPAREN() { return getToken(MizanParser.RPAREN, 0); }
 		public ParenExprContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterParenExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitParenExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class NumLitContext extends ExprContext {
 		public TerminalNode NUMBER() { return getToken(MizanParser.NUMBER, 0); }
 		public NumLitContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterNumLit(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitNumLit(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class AddSubExprContext extends ExprContext {
@@ -4253,14 +3733,6 @@ public class MizanParser extends Parser {
 		public TerminalNode PLUS() { return getToken(MizanParser.PLUS, 0); }
 		public TerminalNode MINUS() { return getToken(MizanParser.MINUS, 0); }
 		public AddSubExprContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAddSubExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAddSubExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class UnaryMinusExprContext extends ExprContext {
@@ -4269,27 +3741,11 @@ public class MizanParser extends Parser {
 			return getRuleContext(ExprContext.class,0);
 		}
 		public UnaryMinusExprContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterUnaryMinusExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitUnaryMinusExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class StrLitContext extends ExprContext {
 		public TerminalNode STRING_LIT() { return getToken(MizanParser.STRING_LIT, 0); }
 		public StrLitContext(ExprContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterStrLit(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitStrLit(this);
-		}
 	}
 
 	public final ExprContext expr() throws RecognitionException {
@@ -4512,14 +3968,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_aggregateExpr; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAggregateExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAggregateExpr(this);
-		}
 	}
 
 	public final AggregateExprContext aggregateExpr() throws RecognitionException {
@@ -4567,14 +4015,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_aggFunc; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterAggFunc(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitAggFunc(this);
-		}
 	}
 
 	public final AggFuncContext aggFunc() throws RecognitionException {
@@ -4623,14 +4063,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_argList; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterArgList(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitArgList(this);
-		}
 	}
 
 	public final ArgListContext argList() throws RecognitionException {
@@ -4695,14 +4127,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_healthRule; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterHealthRule(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitHealthRule(this);
-		}
 	}
 
 	public final HealthRuleContext healthRule() throws RecognitionException {
@@ -4829,14 +4253,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_escalationDef; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterEscalationDef(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitEscalationDef(this);
-		}
 	}
 
 	public final EscalationDefContext escalationDef() throws RecognitionException {
@@ -4899,14 +4315,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_escalationLevel; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterEscalationLevel(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitEscalationLevel(this);
-		}
 	}
 
 	public final EscalationLevelContext escalationLevel() throws RecognitionException {
@@ -4976,14 +4384,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_escalationField; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterEscalationField(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitEscalationField(this);
-		}
 	}
 
 	public final EscalationFieldContext escalationField() throws RecognitionException {
@@ -5077,14 +4477,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_escalationAction; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterEscalationAction(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitEscalationAction(this);
-		}
 	}
 
 	public final EscalationActionContext escalationAction() throws RecognitionException {
@@ -5173,14 +4565,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_reportDef; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterReportDef(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitReportDef(this);
-		}
 	}
 
 	public final ReportDefContext reportDef() throws RecognitionException {
@@ -5247,14 +4631,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_reportField; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterReportField(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitReportField(this);
-		}
 	}
 
 	public final ReportFieldContext reportField() throws RecognitionException {
@@ -5345,14 +4721,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_scheduleSpec; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterScheduleSpec(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitScheduleSpec(this);
-		}
 	}
 
 	public final ScheduleSpecContext scheduleSpec() throws RecognitionException {
@@ -5411,14 +4779,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_formatName; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterFormatName(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitFormatName(this);
-		}
 	}
 
 	public final FormatNameContext formatName() throws RecognitionException {
@@ -5466,14 +4826,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_reportContent; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterReportContent(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitReportContent(this);
-		}
 	}
 
 	public final ReportContentContext reportContent() throws RecognitionException {
@@ -5541,14 +4893,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_reportItem; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterReportItem(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitReportItem(this);
-		}
 	}
 
 	public final ReportItemContext reportItem() throws RecognitionException {
@@ -5701,14 +5045,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_transitionTable; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterTransitionTable(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitTransitionTable(this);
-		}
 	}
 
 	public final TransitionTableContext transitionTable() throws RecognitionException {
@@ -5766,14 +5102,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_transitionRule; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterTransitionRule(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitTransitionRule(this);
-		}
 	}
 
 	public final TransitionRuleContext transitionRule() throws RecognitionException {
@@ -5815,14 +5143,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_duration; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterDuration(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitDuration(this);
-		}
 	}
 
 	public final DurationContext duration() throws RecognitionException {
@@ -5859,14 +5179,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_timeSuffix; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterTimeSuffix(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitTimeSuffix(this);
-		}
 	}
 
 	public final TimeSuffixContext timeSuffix() throws RecognitionException {
@@ -5919,14 +5231,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_unitType; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterUnitType(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitUnitType(this);
-		}
 	}
 
 	public final UnitTypeContext unitType() throws RecognitionException {
@@ -5967,14 +5271,6 @@ public class MizanParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_fieldSep; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).enterFieldSep(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof MizanListener ) ((MizanListener)listener).exitFieldSep(this);
-		}
 	}
 
 	public final FieldSepContext fieldSep() throws RecognitionException {
