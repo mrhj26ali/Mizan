@@ -27,7 +27,8 @@ class SemanticAnalyzer:
         self._defined_modes: set[str] = set()
         # أسماء الإجراءات المعرّفة (للتحقق من الاستدعاء قبل التعريف)
         self._defined_procs: set[str] = set()
-
+        # ✅ FIX: Track the current operating mode for IEC 62443 safety lockout
+        self.current_mode: str = None
     # ─────────────────────────────────────────────────────────────────
     # البنية التحتية للزيارة
     # ─────────────────────────────────────────────────────────────────
@@ -390,6 +391,11 @@ class SemanticAnalyzer:
         self.current_scope.define(node.mode_name, sym)
 
         old_scope = self.current_scope
+        
+        # ✅ FIX: Save the previous mode and set the new one
+        old_mode = self.current_mode          
+        self.current_mode = node.mode_name    
+        
         self._enter_scope(f"Mode_{node.mode_name}")
 
         for stmt in node.on_start_statements:
@@ -399,6 +405,9 @@ class SemanticAnalyzer:
             self.visit(rule)
 
         self._exit_scope(old_scope)
+        
+        # ✅ FIX: Restore the previous mode when exiting the block
+        self.current_mode = old_mode          
         return None
 
     def visit_RuleBlockNode(self, node: RuleBlockNode):
@@ -427,6 +436,11 @@ class SemanticAnalyzer:
     # ─────────────────────────────────────────────────────────────────
 
     def visit_CommandStmtNode(self, node: CommandStmtNode):
+        # ✅ FIX: IEC 62443 - Hard lockout of actuators in Maintenance Mode
+        # Note: The AST builder extracts the exact Arabic text 'صيانة' for this mode.
+        if self.current_mode == 'صيانة':
+            self.log_error(node, f"أوامر المشغلات محظورة تماماً في وضع الصيانة .")
+            
         sym = self.resolve_symbol(node.identifier, node.line)
         if sym is not None and not isinstance(sym, ActuatorSymbol):
             self.log_error(node, f"'{node.identifier}' ليس مشغّلاً (Actuator)، لا يمكن إصدار أمر له.")
