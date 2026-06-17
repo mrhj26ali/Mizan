@@ -8,7 +8,8 @@ from Mizan.semantic.types_system import (
     BOOL_TYPE, INT_TYPE, FLOAT_TYPE, ERROR_TYPE,
     UnitType, get_result_type
 )
-from Mizan.semantic.types_system import types_compatible 
+from Mizan.semantic.types_system import types_compatible
+from semantic.types_system import FloatType, IntType 
 
 
 
@@ -341,8 +342,14 @@ class SemanticAnalyzer:
         return declared_type
 
     def _types_compatible(self, declared, actual) -> bool:
-        """يتحقق من توافق الأنواع بشكل صارم للإسناد والتهيئة."""
+        """يتحقق من توافق الأنواع للإسناد والتهيئة."""
         if declared == actual:
+            return True
+        # ✅ FIX 1: Allow implicit widening from INT to FLOAT
+        if isinstance(declared, FloatType) and isinstance(actual, IntType):
+            return True
+        # ✅ FIX 2: Allow raw numeric literals to initialize physical units
+        if isinstance(declared, UnitType) and isinstance(actual, (IntType, FloatType)):
             return True
         return False
 
@@ -586,7 +593,11 @@ class SemanticAnalyzer:
         if left == right:
             return True
         if isinstance(left, UnitType) and isinstance(right, UnitType):
-            return left.name == right.name
+            # ✅ FIX: Use unit_name instead of name to prevent AttributeError
+            return left.unit_name == right.unit_name 
+        # ✅ FIX: Allow comparing INT and FLOAT
+        if {type(left), type(right)} == {IntType, FloatType}:
+            return True
         return False
 
     def visit_TemporalCondNode(self, node: TemporalCondNode):
