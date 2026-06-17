@@ -296,3 +296,37 @@ def type_from_name(name: str) -> Type:
     if name in UnitType.BUILTIN_UNITS:
         return UnitType(name)
     return ERROR_TYPE
+def is_literal_number(type_obj) -> bool:
+    """يتحقق مما إذا كان النوع رقماً حرفياً (INT أو FLOAT)."""
+    return isinstance(type_obj, (IntType, FloatType))
+
+def units_compatible_for_op(left, right, op: str) -> bool:
+    """
+    يتحقق من توافق الوحدات للعمليات الحسابية.
+    - الجمع والطرح: يجب أن تكون الوحدات متطابقة
+    - الضرب والقسمة: يُسمح بأي وحدات (ينتج وحدة جديدة)
+    - المقارنة: يجب أن تكون الوحدات متطابقة، أو أحد الطرفين رقم حرفي
+    """
+    # إذا كان كلا الطرفين وحدات فيزيائية
+    if isinstance(left, UnitType) and isinstance(right, UnitType):
+        if op in ('+', '-'):
+            # الجمع والطرح يتطلبان وحدات متطابقة
+            return left.unit_name == right.unit_name
+        elif op in ('*', '/'):
+            # الضرب والقسمة يُسمح بهما (ينتج وحدة مركبة)
+            return True
+        elif op in ('==', '!=', '>', '<', '>=', '<='):
+            # المقارنة تتطلب وحدات متطابقة
+            return left.unit_name == right.unit_name
+    
+    # إذا كان أحد الطرفين وحدة فيزيائية والآخر رقم حرفي
+    if isinstance(left, UnitType) and is_literal_number(right):
+        return True  # الرقم الحرفي يتبنى الوحدة
+    if is_literal_number(left) and isinstance(right, UnitType):
+        return True  # الرقم الحرفي يتبنى الوحدة
+    
+    # إذا كان كلا الطرفين أرقاماً حرفية
+    if is_literal_number(left) and is_literal_number(right):
+        return True
+    
+    return False
