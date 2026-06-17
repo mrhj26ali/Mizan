@@ -467,10 +467,15 @@ class SemanticAnalyzer:
         if sym is None:
             return ERROR_TYPE
 
+        # ✅ FIX: Directional Safety - Sensors are READ-ONLY
+        if isinstance(sym, SensorSymbol):
+            self.log_error(node, f"لا يمكن إسناد قيمة لحساس '{node.identifier}' (الحساسات للقراءة فقط).")
+            return ERROR_TYPE
+
         if isinstance(sym, ConstSymbol):
             self.log_error(node, f"لا يمكن إسناد قيمة للثابت '{node.identifier}'.")
             return ERROR_TYPE
-
+        
         var_type = sym.type
 
         if node.index_expr:
@@ -666,6 +671,11 @@ class SemanticAnalyzer:
     def visit_VariableExprNode(self, node: VariableExprNode):
         sym = self.resolve_symbol(node.identifier, node.line)
         if sym is None:
+            return ERROR_TYPE
+
+        # ✅ FIX: Directional Safety - Actuators are WRITE-ONLY
+        if isinstance(sym, ActuatorSymbol):
+            self.log_error(node, f"لا يمكن القراءة من مشغّل '{node.identifier}' (المشغلات للكتابة فقط).")
             return ERROR_TYPE
 
         if node.index_expr:
