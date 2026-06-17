@@ -4,13 +4,14 @@ from Mizan.semantic.symbols import (
     VariableSymbol, ConstSymbol, ProcedureSymbol,
     SensorSymbol, ActuatorSymbol, DeviceSymbol, ModeSymbol
 )
+
+# ✅ FIX: Import EVERYTHING from the exact same module path!
+# This prevents Python from loading the module twice and breaking isinstance().
 from Mizan.semantic.types_system import (
     BOOL_TYPE, INT_TYPE, FLOAT_TYPE, ERROR_TYPE,
-    UnitType, get_result_type
+    UnitType, get_result_type, types_compatible, units_compatible_for_op,
+    FloatType, IntType 
 )
-from Mizan.semantic.types_system import types_compatible
-from semantic.types_system import FloatType, IntType 
-
 
 
 # =====================================================================
@@ -189,11 +190,31 @@ class SemanticAnalyzer:
 
     def visit_DeviceBlockNode(self, node: DeviceBlockNode):
         fields_dict = {}
+        has_ip = False
+        has_port = False
+        protocol = None
+        
         for field in node.fields:
             if isinstance(field.value, DurationNode):
                 fields_dict[field.key] = f"{field.value.value} {field.value.unit}"
             else:
                 fields_dict[field.key] = field.value
+            
+            # تتبع الحقول المطلوبة
+            if field.key == 'IP':
+                has_ip = True
+            elif field.key == 'PORT':
+                has_port = True
+            elif field.key == 'PROTOCOL':
+                protocol = field.value
+        
+        # التحقق من صحة الأجهزة الشبكية
+        if protocol and protocol.lower() in ['modbus_tcp', 'mqtt', 'opcua']:
+            if not has_ip:
+                self.log_error(node, f"جهاز '{node.identifier}' يستخدم بروتوكول {protocol} ولكنه يفتقر إلى عنوان IP (عنوان_ip).")
+            if not has_port:
+                self.log_error(node, f"جهاز '{node.identifier}' يستخدم بروتوكول {protocol} ولكنه يفتقر إلى منفذ (منفذ).")
+        
         sym = DeviceSymbol(node.identifier, fields_dict.get('TYPE', 'Unknown'),
                            fields_dict.get('PROTOCOL', 'N/A'), fields_dict)
         self.current_scope.define(node.identifier, sym)
@@ -234,6 +255,7 @@ class SemanticAnalyzer:
         sensor_type = None
         sensor_range = None
         sensor_address = None
+        
         for field in node.fields:
             if field.key == 'TYPE':
                 sensor_type = self.resolve_type(field.value)
@@ -244,7 +266,11 @@ class SemanticAnalyzer:
             elif field.key == 'HEALTH':
                 for rule in field.value:
                     self.visit(rule)
-
+        
+        # التحقق من وجود عنوان للحساس
+        if sensor_address is None:
+            self.log_error(node, f"حساس '{node.identifier}' يفتقر إلى عنوان (عنوان) لقراءة البيانات من الجهاز.")
+        
         sym = SensorSymbol(node.identifier, sensor_type, sensor_range, sensor_address)
         self.current_scope.define(node.identifier, sym)
         return None
@@ -253,6 +279,7 @@ class SemanticAnalyzer:
         actuator_type = None
         actuator_range = None
         actuator_address = None
+        
         for field in node.fields:
             if field.key == 'TYPE':
                 actuator_type = self.resolve_type(field.value)
@@ -260,7 +287,11 @@ class SemanticAnalyzer:
                 actuator_range = field.value
             elif field.key == 'ADDRESS':
                 actuator_address = field.value
-
+        
+        # التحقق من وجود عنوان للمشغل
+        if actuator_address is None:
+            self.log_error(node, f"مشغل '{node.identifier}' يفتقر إلى عنوان (عنوان) لكتابة البيانات إلى الجهاز.")
+        
         sym = ActuatorSymbol(node.identifier, actuator_type, actuator_range, actuator_address)
         self.current_scope.define(node.identifier, sym)
         return None
@@ -350,6 +381,10 @@ class SemanticAnalyzer:
             return True
         # ✅ FIX 2: Allow raw numeric literals to initialize physical units
         if isinstance(declared, UnitType) and isinstance(actual, (IntType, FloatType)):
+            return True
+        # ✅ FIX 3: Allow stripping units (UnitType -> FloatType/IntType)
+        # This is the explicit "unit stripping" operation
+        if isinstance(declared, (FloatType, IntType)) and isinstance(actual, UnitType):
             return True
         return False
 
@@ -590,15 +625,15 @@ class SemanticAnalyzer:
 
     def _types_compatible_for_comp(self, left, right) -> bool:
         """يتحقق من توافق الأنواع للمقارنة المنطقية."""
-        if left == right:
+        
+        # السماح بالترقية الضمنية من INT إلى FLOAT
+        if isinstance(left, FloatType) and isinstance(right, IntType):
             return True
-        if isinstance(left, UnitType) and isinstance(right, UnitType):
-            # ✅ FIX: Use unit_name instead of name to prevent AttributeError
-            return left.unit_name == right.unit_name 
-        # ✅ FIX: Allow comparing INT and FLOAT
-        if {type(left), type(right)} == {IntType, FloatType}:
+        if isinstance(left, IntType) and isinstance(right, FloatType):
             return True
-        return False
+        
+        # التحقق من توافق الوحدات
+        return units_compatible_for_op(left, right, '==')
 
     def visit_TemporalCondNode(self, node: TemporalCondNode):
         cond_type = self.visit(node.condition)
@@ -640,6 +675,12 @@ class SemanticAnalyzer:
         if left_type is None or right_type is None:
             return ERROR_TYPE
         if left_type == ERROR_TYPE or right_type == ERROR_TYPE:
+            return ERROR_TYPE
+
+        # التحقق من توافق الوحدات للعمليات الحسابية
+        from Mizan.semantic.types_system import units_compatible_for_op
+        if not units_compatible_for_op(left_type, right_type, node.op):
+            self.log_error(node, f"لا يمكن إجراء العملية '{node.op}' بين '{left_type}' و '{right_type}' (وحدات غير متوافقة).")
             return ERROR_TYPE
 
         result_type = get_result_type(left_type, node.op, right_type)
