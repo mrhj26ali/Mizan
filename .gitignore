@@ -8,10 +8,8 @@ __pycache__/
 # ANTLR generated files (Python3 target)
 *.interp
 *.tokens
-*Lexer.py
-*Parser.py
-*Listener.py
-*Visitor.py
+
+
 
 # OS files
 .DS_Store
