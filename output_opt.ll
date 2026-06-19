@@ -1,33 +1,23 @@
-; ModuleID = "mizan_program"
-target triple = "x86_64-pc-windows-msvc"
-target datalayout = ""
+; ModuleID = 'C:\Users\DELL\AppData\Local\Temp\tmpt51bhrz1.ll'
+source_filename = "C:\\Users\\DELL\\AppData\\Local\\Temp\\tmpt51bhrz1.ll"
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-pc-windows-msvc19.33.0"
 
-declare i32 @"printf"(i8* %".1", ...)
+@"\D8\B3" = local_unnamed_addr global i32 0
+@"\D8\B5" = local_unnamed_addr global i32 0
+@"\D8\B9" = local_unnamed_addr global double 0.000000e+00
+@"\D9\85\D8\AC\D9\87\D9\88\D9\84" = local_unnamed_addr global i32 0
+@"\D8\A7\D9\84\D9\86\D8\AA\D9\8A\D8\AC\D8\A9" = local_unnamed_addr global double 0.000000e+00
 
-declare double @"read_sensor_register"(i32 %".1")
-
-declare void @"write_actuator_register"(i32 %".1", double %".2")
-
-declare void @"panic_div_zero"()
-
-@"س" = global i32 0
-@"ص" = global i32 0
-@"النتيجة" = global double              0x0
-define i32 @"main"()
-{
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(write, argmem: none, inaccessiblemem: none)
+define noundef i32 @main() local_unnamed_addr #0 {
 entry:
-  store i32 10, i32* @"س"
-  store i32 0, i32* @"ص"
-  %"س" = load i32, i32* @"س"
-  %"ص" = load i32, i32* @"ص"
-  %"is_zero_trap" = icmp eq i32 %"ص", 0
-  br i1 %"is_zero_trap", label %"panic_block", label %"math_block"
-panic_block:
-  call void @"panic_div_zero"()
-  unreachable
-math_block:
-  %"divtmp" = sdiv i32 %"س", %"ص"
-  %"cast_to_float" = sitofp i32 %"divtmp" to double
-  store double %"cast_to_float", double* @"النتيجة"
+  store i32 5, ptr @"\D8\B3", align 4
+  store i32 10, ptr @"\D8\B5", align 4
+  store double 1.500000e+01, ptr @"\D8\B9", align 8
+  store i32 999, ptr @"\D9\85\D8\AC\D9\87\D9\88\D9\84", align 4
+  store double 1.000000e+01, ptr @"\D8\A7\D9\84\D9\86\D8\AA\D9\8A\D8\AC\D8\A9", align 8
   ret i32 0
 }
+
+attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(write, argmem: none, inaccessiblemem: none) }
