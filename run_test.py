@@ -32,7 +32,6 @@ class MizanErrorListener(ErrorListener):
 def initialize_llvm():
     """Initializes the LLVM engine and native target architecture."""
     try:
-        # llvm.initialize() is deprecated in llvmlite 0.47.0, but we keep it for older versions
         llvm.initialize()
     except RuntimeError:
         pass
@@ -48,16 +47,11 @@ def initialize_llvm():
 def initialize_target_machine():
     """
     Lab 22: Extracts the Target Triple and creates the Target Machine.
-    This tells LLVM exactly what CPU and OS we are compiling for.
     """
-    # 1. Extract the default target triple (e.g., x86_64-pc-windows-msvc)
     target_triple = llvm.get_default_triple()
     print(f"🎯 المعمارية المستهدفة: {target_triple}")
     
-    # 2. Get the Target object based on the triple
     target = llvm.Target.from_default_triple()
-    
-    # 3. Create the Target Machine with standard settings
     target_machine = target.create_target_machine()
     
     return target_machine, target_triple
@@ -158,7 +152,7 @@ def main():
         print("\n--- تقرير النطاقات الكامل ---")
         analyzer.current_scope.print_node()
 
-        # 6. Backend: Code Generation, Optimization & Assembly (Labs 19, 21, 22)
+        # 6. Backend: Code Generation, Optimization, Assembly & Object File
         if not analyzer.errors:
             # --- Step A: Generate Raw IR ---
             print("\n2️⃣ جاري توليد كود LLVM IR الخام...")
@@ -190,12 +184,24 @@ def main():
             final_mod.triple = target_triple
             final_mod.data_layout = str(target_machine.target_data)
             
-            # Emit the actual Assembly code for the CPU
+            # Emit the actual Assembly code for the CPU (Human-readable)
             asm_code = target_machine.emit_assembly(final_mod)
-            
             with open("output.s", "w", encoding="utf-8") as f:
                 f.write(asm_code)
-            print("✅ تم توليد كود الآلة بنجاح! تفقد ملف output.s")
+            print("✅ تم توليد كود التجميع (output.s) بنجاح!")
+
+            # --- Step D: Lab 23 - Raw Object File Emission ---
+            print("5️⃣ جاري توليد ملف كود الآلة الثنائي (Object File)...")
+            
+            # emit_object executes Instruction Selection & Register Allocation 
+            # and returns raw machine code bytes.
+            obj_data = target_machine.emit_object(final_mod)
+            
+            # CRITICAL: Must be saved in binary mode ("wb")
+            with open("output.o", "wb") as f:
+                f.write(obj_data)
+                
+            print(f"✅ تم توليد ملف الهدف (output.o) بنجاح! الحجم: {len(obj_data)} بايت.")
 
         else:
             print("⛔ تم إيقاف توليد الكود بسبب وجود أخطاء دلالية.")
