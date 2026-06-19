@@ -17,7 +17,7 @@ from Mizan.Ast.ast_visualizer import ASTVisualizerVisitor
 from antlr4.error.ErrorListener import ErrorListener
 from Backend.ir_generator import IRGenerator
 
-# Lab 19: Import LLVM binding for the optimization pipeline
+# Lab 19/22: Import LLVM binding for optimization and target machine setup
 import llvmlite.binding as llvm 
 
 class MizanErrorListener(ErrorListener):
@@ -26,16 +26,17 @@ class MizanErrorListener(ErrorListener):
         print(f"❌ [خطأ نحوي] في السطر {line}:{column} -> الكلمة '{offending_text}' غير متوقعة.")
 
 # =====================================================================
-# Lab 19: LLVM Initialization & Optimization Pipeline
+# Lab 19 & 22: LLVM Initialization, Optimization & Target Machine
 # =====================================================================
 
 def initialize_llvm():
-    """
-    Initializes the LLVM engine and configures it for the host machine's 
-    native architecture. 
-    Note: In llvmlite >= 0.43.0, explicit core initialization is handled 
-    automatically by the C++ backend. We only ensure native targets are loaded.
-    """
+    """Initializes the LLVM engine and native target architecture."""
+    try:
+        # llvm.initialize() is deprecated in llvmlite 0.47.0, but we keep it for older versions
+        llvm.initialize()
+    except RuntimeError:
+        pass
+        
     try:
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
@@ -44,21 +45,30 @@ def initialize_llvm():
         
     print("✅ تم تهيئة محرك LLVM بنجاح")
 
+def initialize_target_machine():
+    """
+    Lab 22: Extracts the Target Triple and creates the Target Machine.
+    This tells LLVM exactly what CPU and OS we are compiling for.
+    """
+    # 1. Extract the default target triple (e.g., x86_64-pc-windows-msvc)
+    target_triple = llvm.get_default_triple()
+    print(f"🎯 المعمارية المستهدفة: {target_triple}")
+    
+    # 2. Get the Target object based on the triple
+    target = llvm.Target.from_default_triple()
+    
+    # 3. Create the Target Machine with standard settings
+    target_machine = target.create_target_machine()
+    
+    return target_machine, target_triple
+
 def optimize_ir(raw_llvm_ir: str) -> str:
     """
-    Parses raw LLVM IR text into an LLVM Module, verifies its structural 
-    integrity, and runs it through the LLVM optimization pass manager.
-    Includes robust fallbacks for modern llvmlite versions (0.40+).
+    Parses raw LLVM IR text, verifies it, and runs it through the O2 optimization 
+    pipeline. Uses external 'clang' as a robust fallback for modern llvmlite.
     """
-    # 1. Parse the text into a real LLVM Module object
     mod = llvm.parse_assembly(raw_llvm_ir)
-    
-    # Verify the module structurally before optimizing
     mod.verify()
-    
-    # 2. Attempt to use the Pass Manager via Python bindings
-    # Note: llvmlite 0.47.0 (tracking LLVM 17+) removed the legacy pass manager 
-    # Python bindings entirely. We use a multi-strategy fallback.
     
     # Strategy A: Legacy API (llvmlite < 0.40)
     if hasattr(llvm, 'create_module_pass_manager'):
@@ -75,9 +85,7 @@ def optimize_ir(raw_llvm_ir: str) -> str:
         except Exception:
             pass
 
-    # Strategy C: Fallback to LLVM 'clang' CLI tool to optimize IR
-    # (Note: The official LLVM Windows release omits 'opt.exe', but 'clang.exe' 
-    # contains the exact same O2 optimization pipeline).
+    # Strategy C: Fallback to LLVM 'clang' CLI tool
     try:
         with tempfile.NamedTemporaryFile(suffix=".ll", delete=False, mode="w", encoding="utf-8") as f_in:
             f_in.write(raw_llvm_ir)
@@ -85,7 +93,6 @@ def optimize_ir(raw_llvm_ir: str) -> str:
             
         temp_out = temp_in.replace(".ll", "_opt.ll")
         
-        # Run clang with O2 optimization, emitting LLVM IR (-S -emit-llvm)
         subprocess.run(
             ["clang", "-O2", "-S", "-emit-llvm", temp_in, "-o", temp_out],
             check=True, capture_output=True, text=True
@@ -94,7 +101,6 @@ def optimize_ir(raw_llvm_ir: str) -> str:
         with open(temp_out, "r", encoding="utf-8") as f_out:
             optimized_ir = f_out.read()
             
-        # Cleanup temp files
         os.unlink(temp_in)
         os.unlink(temp_out)
         
@@ -102,13 +108,10 @@ def optimize_ir(raw_llvm_ir: str) -> str:
         return optimized_ir
         
     except FileNotFoundError:
-        # This means Windows truly cannot find 'clang.exe' in the PATH
         print("⚠️ تحذير: لم يتم العثور على أداة 'clang' في مسار النظام (PATH).")
-        print("💡 تأكد من تثبيت LLVM وإضافة مجلد bin إلى متغيرات البيئة.")
         return raw_llvm_ir
         
     except subprocess.CalledProcessError as e:
-        # This means 'clang' WAS found, but it crashed while reading our IR!
         print("⚠️ تم العثور على 'clang' لكنه رفض الكود الخام!")
         print(f"❌ خطأ المحسن (clang stderr): {e.stderr}")
         return raw_llvm_ir
@@ -155,7 +158,7 @@ def main():
         print("\n--- تقرير النطاقات الكامل ---")
         analyzer.current_scope.print_node()
 
-        # 6. Backend: Code Generation & Optimization (Lab 19)
+        # 6. Backend: Code Generation, Optimization & Assembly (Labs 19, 21, 22)
         if not analyzer.errors:
             # --- Step A: Generate Raw IR ---
             print("\n2️⃣ جاري توليد كود LLVM IR الخام...")
@@ -166,18 +169,34 @@ def main():
                 f.write(raw_llvm_ir)
             print("✅ تم حفظ كود LLVM IR الخام في الملف: output_raw.ll")
 
-            # --- Step B: Initialize & Optimize ---
+            # --- Step B: Initialize LLVM & Optimize ---
             print("\n3️⃣ جاري تشغيل مدير تمريرات التحسين (Pass Manager)...")
             initialize_llvm()
+            optimized_ir = optimize_ir(raw_llvm_ir)
             
-            try:
-                optimized_ir = optimize_ir(raw_llvm_ir)
-                
-                with open("output_opt.ll", "w", encoding="utf-8") as f:
-                    f.write(optimized_ir)
-                print("✅ تم تحسين الكود بنجاح! قارن بين output_raw.ll و output_opt.ll")
-            except Exception as e:
-                print(f"❌ حدث خطأ أثناء التحسين: {e}")
+            with open("output_opt.ll", "w", encoding="utf-8") as f:
+                f.write(optimized_ir)
+            print("✅ تم حفظ الكود المحسن في الملف: output_opt.ll")
+
+            # --- Step C: Lab 22 - Target Machine & Assembly Emission ---
+            print("\n4️⃣ جاري تهيئة آلة الهدف (Target Machine) وتوليد كود التجميع...")
+            target_machine, target_triple = initialize_target_machine()
+            
+            # Parse the optimized IR back into a binding Module
+            final_mod = llvm.parse_assembly(optimized_ir)
+            final_mod.verify()
+            
+            # Bind the module to the specific hardware architecture
+            final_mod.triple = target_triple
+            final_mod.data_layout = str(target_machine.target_data)
+            
+            # Emit the actual Assembly code for the CPU
+            asm_code = target_machine.emit_assembly(final_mod)
+            
+            with open("output.s", "w", encoding="utf-8") as f:
+                f.write(asm_code)
+            print("✅ تم توليد كود الآلة بنجاح! تفقد ملف output.s")
+
         else:
             print("⛔ تم إيقاف توليد الكود بسبب وجود أخطاء دلالية.")
 

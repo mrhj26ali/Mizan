@@ -7,6 +7,7 @@ Mizan.arabic
 mizan_ast_output
 README.md
 requirements.txt
+runtime.c
 run_test.py
 Ast\ast_builder.py
 Ast\ast_visitor.py
@@ -57,35 +58,22 @@ Thumbs.db
 
 
 ### FILE: Mizan.arabic ###
-برنامج النظام_الذكي_للمصنع ؛
+برنامج اختبار_التحسين ؛
 
-// 1. المتغيرات والثوابت
-متغير درجة_الحرارة : حقيقي = 25.0 ؛
-متغير عداد_الدورات : صحيح = 0 ؛
-ثابت الحد_الاقصى : حقيقي = 80.0 ؛
+// 1. المتغيرات
+متغير س : صحيح = 5 ؛
+متغير ص : صحيح = 10 ؛
 
-// ✅ تم إضافة تعريف المشغل هنا
-مشغل منبه_النظام {
-    نوع   : منطقي ،
-    عنوان : 0x0101
-} ؛
+// معادلة يمكن حسابها مسبقًا (طي الثوابت)
+متغير ع : حقيقي = س + ص ؛ 
 
-// 2. إجراء يحتوي على حلقة تكرارية وشروط
-اجراء مراقبة_المصنع () {
-    طالما ( عداد_الدورات < 5 ) {
-        درجة_الحرارة = درجة_الحرارة + 15.0 ؛
-        عداد_الدورات = عداد_الدورات + 1 ؛
-        
-        سجل_حادثة "الدورة الحالية: فحص الحرارة" ؛
-        
-        اذا ( درجة_الحرارة > الحد_الاقصى ) {
-            تنبيه مستوى_1 "تحذير: الحرارة تجاوزت الحد المسموح!" ؛
-            امر منبه_النظام : تشغيل ؛
-        } والا {
-            سجل_حادثة "الحرارة ضمن النطاق الآمن." ؛
-        }
-    }
-}
+// كود ميت: متغير يُحجز في الذاكرة ولكن لا يُستخدم أبدًا
+متغير مجهول : صحيح = 999 ؛ 
+
+// فخ حماية: القسمة على ثابت
+// زائرنا سيزرع فخًا للتأكد من أن "ص" ليس صفر
+// لكن المحسن سيثبت رياضيًا أن "ص" هي 10 دائمًا، وسيحذف الفخ!
+متغير النتيجة : حقيقي = 100 / ص ؛ 
 
 
 ### FILE: mizan_ast_output ###
@@ -94,104 +82,63 @@ digraph {
 	nodesep=0.5 rankdir=TB ranksep=0.7 splines=ortho
 	node [fillcolor=white fontname=Arial fontsize=11 shape=box style="rounded,filled"]
 	edge [color="#555555" fontname=Arial fontsize=9]
-	2443336940720 [label=Program fillcolor="#B0BEC5"]
-	2443336935008 [label="برنامج
-النظام_الذكي_للمصنع" fillcolor="#90CAF9"]
-	2443336940720 -> 2443336935008 [label=decl]
-	2443336936016 [label="متغير
-درجة_الحرارة" fillcolor="#C8E6C9"]
-	2443336935344 [label="نوع
-حقيقي" fillcolor="#E8EAF6"]
-	2443336936016 -> 2443336935344 [label="نوع"]
-	2443336935680 [label=25.0 fillcolor="#F5F5F5"]
-	2443336936016 -> 2443336935680 [label="قيمة"]
-	2443336940720 -> 2443336936016 [label=decl]
-	2443337085200 [label="متغير
-عداد_الدورات" fillcolor="#C8E6C9"]
-	2443337084240 [label="نوع
+	3119432920304 [label=Program fillcolor="#B0BEC5"]
+	3119432918288 [label="برنامج
+اختبار_التحسين" fillcolor="#90CAF9"]
+	3119432920304 -> 3119432918288 [label=decl]
+	3119432919296 [label="متغير
+س" fillcolor="#C8E6C9"]
+	3119432918624 [label="نوع
 صحيح" fillcolor="#E8EAF6"]
-	2443337085200 -> 2443337084240 [label="نوع"]
-	2443337084880 [label=0 fillcolor="#F5F5F5"]
-	2443337085200 -> 2443337084880 [label="قيمة"]
-	2443336940720 -> 2443337085200 [label=decl]
-	2443336936352 [label="ثابت
-الحد_الاقصى" fillcolor="#FFF9C4"]
-	2443337085520 [label="نوع
+	3119432919296 -> 3119432918624 [label="نوع"]
+	3119432918960 [label=5 fillcolor="#F5F5F5"]
+	3119432919296 -> 3119432918960 [label="قيمة"]
+	3119432920304 -> 3119432919296 [label=decl]
+	3119433068496 [label="متغير
+ص" fillcolor="#C8E6C9"]
+	3119433067536 [label="نوع
+صحيح" fillcolor="#E8EAF6"]
+	3119433068496 -> 3119433067536 [label="نوع"]
+	3119433067856 [label=10 fillcolor="#F5F5F5"]
+	3119433068496 -> 3119433067856 [label="قيمة"]
+	3119432920304 -> 3119433068496 [label=decl]
+	3119433069456 [label="متغير
+ع" fillcolor="#C8E6C9"]
+	3119433068816 [label="نوع
 حقيقي" fillcolor="#E8EAF6"]
-	2443336936352 -> 2443337085520 [label="نوع"]
-	2443337085840 [label=80.0 fillcolor="#F5F5F5"]
-	2443336936352 -> 2443337085840 [label="قيمة"]
-	2443336940720 -> 2443336936352 [label=decl]
-	2443336937024 [label="مشغّل
-منبه_النظام" fillcolor="#80CBC4"]
-	2443336936688 [label="TYPE
-..." fillcolor="#E0F2F1"]
-	2443337395872 [label="نوع
-منطقي" fillcolor="#E8EAF6"]
-	2443336936688 -> 2443337395872 [label="قيمة"]
-	2443336937024 -> 2443336936688 [label="حقل"]
-	2443337086160 [label="ADDRESS
-0x0101" fillcolor="#E0F2F1"]
-	2443336937024 -> 2443337086160 [label="حقل"]
-	2443336940720 -> 2443336937024 [label=decl]
-	2443336940384 [label="إجراء
-مراقبة_المصنع" fillcolor="#CE93D8" fontcolor=white]
-	2443336940048 [label="طالما" fillcolor="#FFCC80"]
-	2443337088080 [label="مقارنة
-<" fillcolor="#FFF9C4"]
-	2443337397088 [label="متغير
-عداد_الدورات" fillcolor="#F5F5F5"]
-	2443337088080 -> 2443337397088 [label="يسار"]
-	2443337755696 [label=5 fillcolor="#F5F5F5"]
-	2443337088080 -> 2443337755696 [label="يمين"]
-	2443336940048 -> 2443337088080 [label="شرط"]
-	2443336938032 [label="إسناد
-درجة_الحرارة" fillcolor="#FFAB91"]
-	2443336937696 [label="عملية
+	3119433069456 -> 3119433068816 [label="نوع"]
+	3119432919968 [label="عملية
 +" fillcolor="#FFFDE7"]
-	2443336937360 [label="متغير
-درجة_الحرارة" fillcolor="#F5F5F5"]
-	2443336937696 -> 2443336937360 [label="يسار"]
-	2443337396176 [label=15.0 fillcolor="#F5F5F5"]
-	2443336937696 -> 2443337396176 [label="يمين"]
-	2443336938032 -> 2443336937696 [label="قيمة"]
-	2443336940048 -> 2443336938032 [label="جسم"]
-	2443337087120 [label="إسناد
-عداد_الدورات" fillcolor="#FFAB91"]
-	2443337086800 [label="عملية
-+" fillcolor="#FFFDE7"]
-	2443337086480 [label="متغير
-عداد_الدورات" fillcolor="#F5F5F5"]
-	2443337086800 -> 2443337086480 [label="يسار"]
-	2443337396480 [label=1 fillcolor="#F5F5F5"]
-	2443337086800 -> 2443337396480 [label="يمين"]
-	2443337087120 -> 2443337086800 [label="قيمة"]
-	2443336940048 -> 2443337087120 [label="جسم"]
-	2443336938368 [label="سجل
-\"الدورة الحالية: فحص الحرارة\"" fillcolor="#CFD8DC"]
-	2443336940048 -> 2443336938368 [label="جسم"]
-	2443336939712 [label="اذا" fillcolor="#FFCC80"]
-	2443336938704 [label="مقارنة
->" fillcolor="#FFF9C4"]
-	2443337087440 [label="متغير
-درجة_الحرارة" fillcolor="#F5F5F5"]
-	2443336938704 -> 2443337087440 [label="يسار"]
-	2443337396784 [label="متغير
-الحد_الاقصى" fillcolor="#F5F5F5"]
-	2443336938704 -> 2443337396784 [label="يمين"]
-	2443336939712 -> 2443336938704 [label="شرط"]
-	2443336939040 [label="تنبيه [مستوى_1]
-\"تحذير: الحرارة تجاوزت الحد المسموح!\"" fillcolor="#EF9A9A"]
-	2443336939712 -> 2443336939040 [label="إذا_صح"]
-	2443336939376 [label="أمر
-منبه_النظام ← تشغيل" fillcolor="#FFCDD2"]
-	2443336939712 -> 2443336939376 [label="إذا_صح"]
-	2443337087760 [label="سجل
-\"الحرارة ضمن النطاق الامن.\"" fillcolor="#CFD8DC"]
-	2443336939712 -> 2443337087760 [label="والا"]
-	2443336940048 -> 2443336939712 [label="جسم"]
-	2443336940384 -> 2443336940048 [label="جسم"]
-	2443336940720 -> 2443336940384 [label=decl]
+	3119432919632 [label="متغير
+س" fillcolor="#F5F5F5"]
+	3119432919968 -> 3119432919632 [label="يسار"]
+	3119433069136 [label="متغير
+ص" fillcolor="#F5F5F5"]
+	3119432919968 -> 3119433069136 [label="يمين"]
+	3119433069456 -> 3119432919968 [label="قيمة"]
+	3119432920304 -> 3119433069456 [label=decl]
+	3119433379792 [label="متغير
+مجهول" fillcolor="#C8E6C9"]
+	3119433379488 [label="نوع
+صحيح" fillcolor="#E8EAF6"]
+	3119433379792 -> 3119433379488 [label="نوع"]
+	3119433069776 [label=999 fillcolor="#F5F5F5"]
+	3119433379792 -> 3119433069776 [label="قيمة"]
+	3119432920304 -> 3119433379792 [label=decl]
+	3119433380704 [label="متغير
+النتيجة" fillcolor="#C8E6C9"]
+	3119433380096 [label="نوع
+حقيقي" fillcolor="#E8EAF6"]
+	3119433380704 -> 3119433380096 [label="نوع"]
+	3119433070416 [label="عملية
+/" fillcolor="#FFFDE7"]
+	3119433380400 [label=100 fillcolor="#F5F5F5"]
+	3119433070416 -> 3119433380400 [label="يسار"]
+	3119433070096 [label="متغير
+ص" fillcolor="#F5F5F5"]
+	3119433070416 -> 3119433070096 [label="يمين"]
+	3119433380704 -> 3119433070416 [label="قيمة"]
+	3119432920304 -> 3119433380704 [label=decl]
 }
 
 
@@ -207,6 +154,17 @@ graphviz==0.21
 llvmlite==0.47.0
 
 pip freeze > requirements.txt
+
+
+### FILE: runtime.c ###
+#include <stdio.h>
+#include <stdlib.h>
+
+// هذه الدالة سيستدعيها مترجمنا عند اكتشاف محاولة قسمة على صفر
+void panic_div_zero() {
+    printf("\n [خطأ وقت التشغيل]: محاولة قسمة على صفر! تم إيقاف البرنامج بأمان \n");
+    exit(1); 
+}
 
 
 ### FILE: run_test.py ###
@@ -287,7 +245,9 @@ def optimize_ir(raw_llvm_ir: str) -> str:
         except Exception:
             pass
 
-    # Strategy C: Fallback to LLVM 'opt' CLI tool if Python bindings are missing
+    # Strategy C: Fallback to LLVM 'clang' CLI tool to optimize IR
+    # (Note: The official LLVM Windows release omits 'opt.exe', but 'clang.exe' 
+    # contains the exact same O2 optimization pipeline).
     try:
         with tempfile.NamedTemporaryFile(suffix=".ll", delete=False, mode="w", encoding="utf-8") as f_in:
             f_in.write(raw_llvm_ir)
@@ -295,9 +255,9 @@ def optimize_ir(raw_llvm_ir: str) -> str:
             
         temp_out = temp_in.replace(".ll", "_opt.ll")
         
-        # Run the LLVM 'opt' tool with O2 optimization
+        # Run clang with O2 optimization, emitting LLVM IR (-S -emit-llvm)
         subprocess.run(
-            ["opt", "-O2", "-S", temp_in, "-o", temp_out],
+            ["clang", "-O2", "-S", "-emit-llvm", temp_in, "-o", temp_out],
             check=True, capture_output=True, text=True
         )
         
@@ -308,14 +268,23 @@ def optimize_ir(raw_llvm_ir: str) -> str:
         os.unlink(temp_in)
         os.unlink(temp_out)
         
-        print("✅ تم التحسين باستخدام أداة 'opt' الخارجية بنجاح!")
+        print("✅ تم التحسين باستخدام أداة 'clang' الخارجية بنجاح!")
         return optimized_ir
         
-    except Exception:
-        # Strategy D: Graceful degradation if 'opt' is not installed
-        print("⚠️ تحذير: محرك LLVM في llvmlite 0.47.0 أزال واجهة برمجة التطبيقات لمدير التمريرات (Pass Manager).")
-        print("⚠️ لم يتم العثور على أداة 'opt' في النظام. سيتم حفظ الكود الخام كنسخة محسنة مؤقتاً.")
-        print("💡 للحصول على تحسين حقيقي، يرجى تثبيت أدوات LLVM (llvm-tools) واستخدام الأمر 'opt'.")
+    except FileNotFoundError:
+        # This means Windows truly cannot find 'clang.exe' in the PATH
+        print("⚠️ تحذير: لم يتم العثور على أداة 'clang' في مسار النظام (PATH).")
+        print("💡 تأكد من تثبيت LLVM وإضافة مجلد bin إلى متغيرات البيئة.")
+        return raw_llvm_ir
+        
+    except subprocess.CalledProcessError as e:
+        # This means 'clang' WAS found, but it crashed while reading our IR!
+        print("⚠️ تم العثور على 'clang' لكنه رفض الكود الخام!")
+        print(f"❌ خطأ المحسن (clang stderr): {e.stderr}")
+        return raw_llvm_ir
+        
+    except Exception as e:
+        print(f"⚠️ خطأ غير متوقع أثناء التحسين: {e}")
         return raw_llvm_ir
 
 # =====================================================================
@@ -1775,6 +1744,10 @@ class IRGenerator:
         
         write_ty = ir.FunctionType(void, [i32, double])
         self.write_actuator_func = ir.Function(self.module, write_ty, name="write_actuator_register")
+        # Panic handler for division by zero
+    
+        panic_ty = ir.FunctionType(void, [])
+        self.panic_func = ir.Function(self.module, panic_ty, name="panic_div_zero")
 
     def _get_llvm_type(self, ast_type_node):
         if isinstance(ast_type_node, BaseTypeNode):
@@ -1800,6 +1773,29 @@ class IRGenerator:
         if isinstance(target_type, ir.IntType) and isinstance(val.type, ir.DoubleType):
             return self.builder.fptosi(val, target_type, "cast_to_int")
         return val
+    
+    def emit_runtime_trap(self, is_danger_i1, panic_function):
+        """
+        Creates a defensive control-flow graph:
+        1. Checks the danger condition.
+        2. Branches to a panic block (calls C runtime exit) or a safe math block.
+        """
+        current_func = self.builder.function
+        
+        # 1. Create two blocks: one for crashing, one for safe continuation
+        panic_bb = current_func.append_basic_block("panic_block")
+        continue_bb = current_func.append_basic_block("math_block")
+        
+        # 2. Conditional branch: if danger is true, go to panic, else go to math
+        self.builder.cbranch(is_danger_i1, panic_bb, continue_bb)
+        
+        # 3. Program the Panic Block
+        self.builder.position_at_end(panic_bb)
+        self.builder.call(panic_function, [])
+        self.builder.unreachable() # Crucial: tells LLVM optimizer this path ends here
+        
+        # 4. Move the "pen" to the safe zone to resume normal IR generation
+        self.builder.position_at_end(continue_bb)
 
     def generate(self, ast_root):
         print("🏭 بدء توليد كود LLVM IR...")
@@ -1973,13 +1969,34 @@ class IRGenerator:
         is_float = isinstance(left_val.type, ir.DoubleType) or isinstance(right_val.type, ir.DoubleType)
         
         if is_float:
+            # --- Float Operations ---
             if not isinstance(left_val.type, ir.DoubleType): left_val = self.builder.sitofp(left_val, ir.DoubleType())
             if not isinstance(right_val.type, ir.DoubleType): right_val = self.builder.sitofp(right_val, ir.DoubleType())
-
-        if node.op == '+': return self.builder.fadd(left_val, right_val, "addtmp") if is_float else self.builder.add(left_val, right_val, "addtmp")
-        elif node.op == '-': return self.builder.fsub(left_val, right_val, "subtmp") if is_float else self.builder.sub(left_val, right_val, "subtmp")
-        elif node.op == '*': return self.builder.fmul(left_val, right_val, "multmp") if is_float else self.builder.mul(left_val, right_val, "multmp")
-        elif node.op == '/': return self.builder.fdiv(left_val, right_val, "divtmp") if is_float else self.builder.sdiv(left_val, right_val, "divtmp")
+            
+            if node.op == '+': return self.builder.fadd(left_val, right_val, "addtmp")
+            elif node.op == '-': return self.builder.fsub(left_val, right_val, "subtmp")
+            elif node.op == '*': return self.builder.fmul(left_val, right_val, "multmp")
+            elif node.op == '/': return self.builder.fdiv(left_val, right_val, "divtmp")
+        else:
+            # --- Integer Operations (✅ FIXED: Previously these were ignored!) ---
+            if node.op == '+': return self.builder.add(left_val, right_val, "addtmp")
+            elif node.op == '-': return self.builder.sub(left_val, right_val, "subtmp")
+            elif node.op == '*': return self.builder.mul(left_val, right_val, "multmp")
+            
+            elif node.op == '/':
+                # --- LAB 20: Runtime Trap for Integer Division ---
+                zero_val = ir.Constant(left_val.type, 0)
+                is_zero = self.builder.icmp_signed('==', right_val, zero_val, name="is_zero_trap")
+                self.emit_runtime_trap(is_zero, self.panic_func)
+                return self.builder.sdiv(left_val, right_val, name="divtmp")
+                
+            elif node.op == '%':
+                # --- LAB 20: Runtime Trap for Integer Modulo (Bonus Safety) ---
+                zero_val = ir.Constant(left_val.type, 0)
+                is_zero = self.builder.icmp_signed('==', right_val, zero_val, name="is_zero_trap_mod")
+                self.emit_runtime_trap(is_zero, self.panic_func)
+                return self.builder.srem(left_val, right_val, name="modtmp")
+                
         return left_val
 
     def visit_CompExprNode(self, node: CompExprNode):
