@@ -8,20 +8,26 @@ declare double @"read_sensor_register"(i32 %".1")
 
 declare void @"write_actuator_register"(i32 %".1", double %".2")
 
-@"درجة_الحرارة" = global double              0x0
-@"عداد_الدورات" = global i32 0
-@"الحد_الاقصى" = constant double              0x0
-define void @"مراقبة_المصنع"()
-{
-entry:
-  ret void
-}
+declare void @"panic_div_zero"()
 
+@"س" = global i32 0
+@"ص" = global i32 0
+@"النتيجة" = global double              0x0
 define i32 @"main"()
 {
 entry:
-  store double 0x4039000000000000, double* @"درجة_الحرارة"
-  store i32 0, i32* @"عداد_الدورات"
-  store double 0x4054000000000000, double* @"الحد_الاقصى"
+  store i32 10, i32* @"س"
+  store i32 0, i32* @"ص"
+  %"س" = load i32, i32* @"س"
+  %"ص" = load i32, i32* @"ص"
+  %"is_zero_trap" = icmp eq i32 %"ص", 0
+  br i1 %"is_zero_trap", label %"panic_block", label %"math_block"
+panic_block:
+  call void @"panic_div_zero"()
+  unreachable
+math_block:
+  %"divtmp" = sdiv i32 %"س", %"ص"
+  %"cast_to_float" = sitofp i32 %"divtmp" to double
+  store double %"cast_to_float", double* @"النتيجة"
   ret i32 0
 }
