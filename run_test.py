@@ -72,7 +72,7 @@ def main():
         traceback.print_exc()
  # 9. توليد كود الآلة (Backend / LLVM)
     if not analyzer.errors:
-            ir_generator = IRGenerator()
+            ir_generator = IRGenerator(semantic_symbols=analyzer.current_scope.all_symbols())
             llvm_ir_code = ir_generator.generate(ast)
             
             # حفظ كود LLVM في ملف نصي للمراجعة
