@@ -42,6 +42,10 @@ class IRGenerator:
         
         write_ty = ir.FunctionType(void, [i32, double])
         self.write_actuator_func = ir.Function(self.module, write_ty, name="write_actuator_register")
+        # Panic handler for division by zero
+    
+        panic_ty = ir.FunctionType(void, [])
+        self.panic_func = ir.Function(self.module, panic_ty, name="panic_div_zero")
 
     def _get_llvm_type(self, ast_type_node):
         if isinstance(ast_type_node, BaseTypeNode):
@@ -67,6 +71,29 @@ class IRGenerator:
         if isinstance(target_type, ir.IntType) and isinstance(val.type, ir.DoubleType):
             return self.builder.fptosi(val, target_type, "cast_to_int")
         return val
+    
+    def emit_runtime_trap(self, is_danger_i1, panic_function):
+        """
+        Creates a defensive control-flow graph:
+        1. Checks the danger condition.
+        2. Branches to a panic block (calls C runtime exit) or a safe math block.
+        """
+        current_func = self.builder.function
+        
+        # 1. Create two blocks: one for crashing, one for safe continuation
+        panic_bb = current_func.append_basic_block("panic_block")
+        continue_bb = current_func.append_basic_block("math_block")
+        
+        # 2. Conditional branch: if danger is true, go to panic, else go to math
+        self.builder.cbranch(is_danger_i1, panic_bb, continue_bb)
+        
+        # 3. Program the Panic Block
+        self.builder.position_at_end(panic_bb)
+        self.builder.call(panic_function, [])
+        self.builder.unreachable() # Crucial: tells LLVM optimizer this path ends here
+        
+        # 4. Move the "pen" to the safe zone to resume normal IR generation
+        self.builder.position_at_end(continue_bb)
 
     def generate(self, ast_root):
         print("🏭 بدء توليد كود LLVM IR...")
@@ -240,13 +267,34 @@ class IRGenerator:
         is_float = isinstance(left_val.type, ir.DoubleType) or isinstance(right_val.type, ir.DoubleType)
         
         if is_float:
+            # --- Float Operations ---
             if not isinstance(left_val.type, ir.DoubleType): left_val = self.builder.sitofp(left_val, ir.DoubleType())
             if not isinstance(right_val.type, ir.DoubleType): right_val = self.builder.sitofp(right_val, ir.DoubleType())
-
-        if node.op == '+': return self.builder.fadd(left_val, right_val, "addtmp") if is_float else self.builder.add(left_val, right_val, "addtmp")
-        elif node.op == '-': return self.builder.fsub(left_val, right_val, "subtmp") if is_float else self.builder.sub(left_val, right_val, "subtmp")
-        elif node.op == '*': return self.builder.fmul(left_val, right_val, "multmp") if is_float else self.builder.mul(left_val, right_val, "multmp")
-        elif node.op == '/': return self.builder.fdiv(left_val, right_val, "divtmp") if is_float else self.builder.sdiv(left_val, right_val, "divtmp")
+            
+            if node.op == '+': return self.builder.fadd(left_val, right_val, "addtmp")
+            elif node.op == '-': return self.builder.fsub(left_val, right_val, "subtmp")
+            elif node.op == '*': return self.builder.fmul(left_val, right_val, "multmp")
+            elif node.op == '/': return self.builder.fdiv(left_val, right_val, "divtmp")
+        else:
+            # --- Integer Operations (✅ FIXED: Previously these were ignored!) ---
+            if node.op == '+': return self.builder.add(left_val, right_val, "addtmp")
+            elif node.op == '-': return self.builder.sub(left_val, right_val, "subtmp")
+            elif node.op == '*': return self.builder.mul(left_val, right_val, "multmp")
+            
+            elif node.op == '/':
+                # --- LAB 20: Runtime Trap for Integer Division ---
+                zero_val = ir.Constant(left_val.type, 0)
+                is_zero = self.builder.icmp_signed('==', right_val, zero_val, name="is_zero_trap")
+                self.emit_runtime_trap(is_zero, self.panic_func)
+                return self.builder.sdiv(left_val, right_val, name="divtmp")
+                
+            elif node.op == '%':
+                # --- LAB 20: Runtime Trap for Integer Modulo (Bonus Safety) ---
+                zero_val = ir.Constant(left_val.type, 0)
+                is_zero = self.builder.icmp_signed('==', right_val, zero_val, name="is_zero_trap_mod")
+                self.emit_runtime_trap(is_zero, self.panic_func)
+                return self.builder.srem(left_val, right_val, name="modtmp")
+                
         return left_val
 
     def visit_CompExprNode(self, node: CompExprNode):
