@@ -75,7 +75,9 @@ def optimize_ir(raw_llvm_ir: str) -> str:
         except Exception:
             pass
 
-    # Strategy C: Fallback to LLVM 'opt' CLI tool if Python bindings are missing
+    # Strategy C: Fallback to LLVM 'clang' CLI tool to optimize IR
+    # (Note: The official LLVM Windows release omits 'opt.exe', but 'clang.exe' 
+    # contains the exact same O2 optimization pipeline).
     try:
         with tempfile.NamedTemporaryFile(suffix=".ll", delete=False, mode="w", encoding="utf-8") as f_in:
             f_in.write(raw_llvm_ir)
@@ -83,9 +85,9 @@ def optimize_ir(raw_llvm_ir: str) -> str:
             
         temp_out = temp_in.replace(".ll", "_opt.ll")
         
-        # Run the LLVM 'opt' tool with O2 optimization
+        # Run clang with O2 optimization, emitting LLVM IR (-S -emit-llvm)
         subprocess.run(
-            ["opt", "-O2", "-S", temp_in, "-o", temp_out],
+            ["clang", "-O2", "-S", "-emit-llvm", temp_in, "-o", temp_out],
             check=True, capture_output=True, text=True
         )
         
@@ -96,14 +98,23 @@ def optimize_ir(raw_llvm_ir: str) -> str:
         os.unlink(temp_in)
         os.unlink(temp_out)
         
-        print("✅ تم التحسين باستخدام أداة 'opt' الخارجية بنجاح!")
+        print("✅ تم التحسين باستخدام أداة 'clang' الخارجية بنجاح!")
         return optimized_ir
         
-    except Exception:
-        # Strategy D: Graceful degradation if 'opt' is not installed
-        print("⚠️ تحذير: محرك LLVM في llvmlite 0.47.0 أزال واجهة برمجة التطبيقات لمدير التمريرات (Pass Manager).")
-        print("⚠️ لم يتم العثور على أداة 'opt' في النظام. سيتم حفظ الكود الخام كنسخة محسنة مؤقتاً.")
-        print("💡 للحصول على تحسين حقيقي، يرجى تثبيت أدوات LLVM (llvm-tools) واستخدام الأمر 'opt'.")
+    except FileNotFoundError:
+        # This means Windows truly cannot find 'clang.exe' in the PATH
+        print("⚠️ تحذير: لم يتم العثور على أداة 'clang' في مسار النظام (PATH).")
+        print("💡 تأكد من تثبيت LLVM وإضافة مجلد bin إلى متغيرات البيئة.")
+        return raw_llvm_ir
+        
+    except subprocess.CalledProcessError as e:
+        # This means 'clang' WAS found, but it crashed while reading our IR!
+        print("⚠️ تم العثور على 'clang' لكنه رفض الكود الخام!")
+        print(f"❌ خطأ المحسن (clang stderr): {e.stderr}")
+        return raw_llvm_ir
+        
+    except Exception as e:
+        print(f"⚠️ خطأ غير متوقع أثناء التحسين: {e}")
         return raw_llvm_ir
 
 # =====================================================================
