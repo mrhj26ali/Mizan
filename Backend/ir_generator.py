@@ -2,56 +2,71 @@
 import llvmlite.ir as ir
 import llvmlite.binding as llvm
 from Mizan.Ast.nodes import *
+from Mizan.semantic.symbols import SensorSymbol, ActuatorSymbol
 
-# Initialize LLVM Target for the host machine
+# Initialize LLVM Target
 llvm.initialize_native_target()
 llvm.initialize_native_asmprinter()
 
 class IRGenerator:
-    def __init__(self):
+    def __init__(self, semantic_symbols=None):
         self.module = ir.Module(name="mizan_program")
         self.module.triple = llvm.get_default_triple()
         
         self.builder = None
         self.function = None
         
-        # Symbol table: maps Mizan ID -> (LLVM Pointer, LLVM Type)
-        self.symbol_table = {}
-        self._str_counter = 0
+        # Mizan Symbol Table from Semantic Analyzer (for hardware mapping)
+        self.mizan_symbols = semantic_symbols or {}
         
+        # LLVM Symbol Table: maps Mizan ID -> (LLVM Pointer, LLVM Type)
+        self.symbol_table = {}
+        
+        self._str_counter = 0
         self._declare_external_functions()
 
-    def _unique_name(self, prefix):
-        self._str_counter += 1
-        return f"{prefix}_{self._str_counter}"
-
     def _declare_external_functions(self):
-        """Declare C functions like printf for industrial logging."""
-        printf_ty = ir.FunctionType(ir.IntType(32), [ir.PointerType(ir.IntType(8))], var_arg=True)
-        ir.Function(self.module, printf_ty, name="printf")
+        """Declare C Runtime functions for Hardware I/O and Logging."""
+        i32 = ir.IntType(32)
+        double = ir.DoubleType()
+        i8_ptr = ir.PointerType(ir.IntType(8))
+        void = ir.VoidType()
+
+        # printf for logs
+        printf_ty = ir.FunctionType(i32, [i8_ptr], var_arg=True)
+        self.printf_func = ir.Function(self.module, printf_ty, name="printf")
+        
+        # Hardware I/O stubs (to be implemented in runtime.c)
+        read_ty = ir.FunctionType(double, [i32])
+        self.read_sensor_func = ir.Function(self.module, read_ty, name="read_sensor_register")
+        
+        write_ty = ir.FunctionType(void, [i32, double])
+        self.write_actuator_func = ir.Function(self.module, write_ty, name="write_actuator_register")
 
     def _get_llvm_type(self, ast_type_node):
-        """Maps Mizan AST types to LLVM IR types."""
         if isinstance(ast_type_node, BaseTypeNode):
-            if ast_type_node.type_name in ('حقيقي', 'عدد_حقيقي'):
-                return ir.DoubleType() # 64-bit float
-            elif ast_type_node.type_name in ('صحيح', 'عدد_صحيح'):
-                return ir.IntType(32)  # 32-bit integer
-            elif ast_type_node.type_name in ('منطقي',):
-                return ir.IntType(1)   # 1-bit boolean
-        # Default to double for physical units (e.g., سيلزيوس, بار)
-        return ir.DoubleType()
+            if ast_type_node.type_name in ('حقيقي', 'عدد_حقيقي'): return ir.DoubleType()
+            elif ast_type_node.type_name in ('صحيح', 'عدد_صحيح'): return ir.IntType(32)
+            elif ast_type_node.type_name in ('منطقي',): return ir.IntType(1)
+        return ir.DoubleType() # Default physical units to double
 
     def _get_string_ptr(self, text):
-        """Creates a global UTF-8 string constant and returns an i8* pointer for printf."""
-        text_bytes = text.encode('utf-8') + b'\0' # Null-terminate for C
+        text_bytes = text.encode('utf-8') + b'\0'
         str_type = ir.ArrayType(ir.IntType(8), len(text_bytes))
-        name = self._unique_name("str")
+        name = f"str_{self._str_counter}"
+        self._str_counter += 1
         str_global = ir.GlobalVariable(self.module, str_type, name=name)
         str_global.global_constant = True
         str_global.initializer = ir.Constant(str_type, bytearray(text_bytes))
-        # Cast array pointer to i8*
         return self.builder.bitcast(str_global, ir.PointerType(ir.IntType(8)))
+
+    def _cast_if_needed(self, val, target_type):
+        """Ensures LLVM strict type matching by casting Int to Float if needed."""
+        if isinstance(target_type, ir.DoubleType) and isinstance(val.type, ir.IntType):
+            return self.builder.sitofp(val, ir.DoubleType(), "cast_to_float")
+        if isinstance(target_type, ir.IntType) and isinstance(val.type, ir.DoubleType):
+            return self.builder.fptosi(val, target_type, "cast_to_int")
+        return val
 
     def generate(self, ast_root):
         print("🏭 بدء توليد كود LLVM IR...")
@@ -65,185 +80,157 @@ class IRGenerator:
         visitor = getattr(self, method_name, self.generic_visit)
         return visitor(node)
 
-    def generic_visit(self, node):
-        # Silently ignore nodes we haven't implemented yet (like DeviceBlock, SensorDecl)
-        return None
+    def generic_visit(self, node): return None
 
     # ─────────────────────────────────────────────────────────────────
-    # 1. Program & Procedures Entry Points
+    # 1. Program & Procedures (Global vs Local Scope Management)
     # ─────────────────────────────────────────────────────────────────
     def visit_ProgramNode(self, node: ProgramNode):
+        # First pass: Create Global Variables & Procedure Signatures
+        for decl in node.declarations:
+            if isinstance(decl, (VarDeclNode, ConstDeclNode)):
+                self._create_global_variable(decl)
+            elif isinstance(decl, ProcedureDefNode):
+                self._create_procedure_signature(decl)
+                
+        # Second pass: Generate main() and procedure bodies
         main_ty = ir.FunctionType(ir.IntType(32), [])
         self.function = ir.Function(self.module, main_ty, name="main")
         block = self.function.append_basic_block(name="entry")
         self.builder = ir.IRBuilder(block)
         
         for decl in node.declarations:
-            self.visit(decl)
-            
+            if isinstance(decl, ProcedureDefNode):
+                self._generate_procedure_body(decl)
+            elif isinstance(decl, (VarDeclNode, ConstDeclNode)):
+                # Initialize global variables inside main's entry block
+                self._initialize_global_variable(decl)
+                
         self.builder.ret(ir.Constant(ir.IntType(32), 0))
 
-    def visit_ProcedureDefNode(self, node: ProcedureDefNode):
+    def _create_global_variable(self, node):
+        var_type = self._get_llvm_type(node.var_type)
+        global_var = ir.GlobalVariable(self.module, var_type, name=node.identifier)
+        global_var.initializer = ir.Constant(var_type, 0) # Default init to 0
+        global_var.global_constant = isinstance(node, ConstDeclNode)
+        self.symbol_table[node.identifier] = (global_var, var_type)
+
+    def _initialize_global_variable(self, node):
+        if node.expr:
+            ptr, var_type = self.symbol_table[node.identifier]
+            init_val = self.visit(node.expr)
+            if init_val:
+                init_val = self._cast_if_needed(init_val, var_type)
+                self.builder.store(init_val, ptr)
+
+    def _create_procedure_signature(self, node):
         ret_type = self._get_llvm_type(node.return_type) if node.return_type else ir.VoidType()
-        func_ty = ir.FunctionType(ret_type, [])
-        func = ir.Function(self.module, func_ty, name=node.identifier)
+        param_types = [self._get_llvm_type(p.var_type) for p in node.params]
+        func_ty = ir.FunctionType(ret_type, param_types)
+        ir.Function(self.module, func_ty, name=node.identifier)
+
+    def _generate_procedure_body(self, node):
+        func = self.module.get_global(node.identifier)
         block = func.append_basic_block(name="entry")
         
         old_builder, old_function = self.builder, self.function
         self.function, self.builder = func, ir.IRBuilder(block)
         
+        # Allocate stack memory for parameters
+        for i, param in enumerate(node.params):
+            param_type = self._get_llvm_type(param.var_type)
+            ptr = self.builder.alloca(param_type, name=param.identifier)
+            self.builder.store(func.args[i], ptr)
+            self.symbol_table[param.identifier] = (ptr, param_type)
+            
         for stmt in node.body:
             self.visit(stmt)
             
-        if ret_type == ir.VoidType():
+        if isinstance(func.function_type.return_type, ir.VoidType):
             self.builder.ret_void()
         else:
-            self.builder.ret(ir.Constant(ret_type, 0))
+            self.builder.ret(ir.Constant(func.function_type.return_type, 0))
             
         self.builder, self.function = old_builder, old_function
 
-    def visit_ExecProcStmtNode(self, node: ExecProcStmtNode):
-        func = self.module.get_global(node.identifier)
-        if func:
-            self.builder.call(func, [], name="call_tmp")
-
-    def visit_ProcCallExprNode(self, node: ProcCallExprNode):
-        func = self.module.get_global(node.identifier)
-        if func:
-            return self.builder.call(func, [], name="call_expr_tmp")
-        return ir.Constant(ir.DoubleType(), 0.0)
-
     # ─────────────────────────────────────────────────────────────────
-    # 2. Variables & Constants (Memory Allocation)
+    # 2. Local Variables & Assignments
     # ─────────────────────────────────────────────────────────────────
     def visit_VarDeclNode(self, node: VarDeclNode):
+        # If we are here, it's a LOCAL variable (inside a procedure)
         var_type = self._get_llvm_type(node.var_type)
         ptr = self.builder.alloca(var_type, name=node.identifier)
-        init_val = self.visit(node.expr)
-        if init_val:
-            self.builder.store(init_val, ptr)
+        if node.expr:
+            init_val = self.visit(node.expr)
+            if init_val:
+                init_val = self._cast_if_needed(init_val, var_type)
+                self.builder.store(init_val, ptr)
         self.symbol_table[node.identifier] = (ptr, var_type)
 
     def visit_ConstDeclNode(self, node: ConstDeclNode):
-        var_type = self._get_llvm_type(node.var_type)
-        ptr = self.builder.alloca(var_type, name=node.identifier)
-        init_val = self.visit(node.expr)
-        if init_val:
-            self.builder.store(init_val, ptr)
-        self.symbol_table[node.identifier] = (ptr, var_type)
+        self.visit_VarDeclNode(node) 
 
     def visit_AssignStmtNode(self, node: AssignStmtNode):
         if node.identifier not in self.symbol_table: return
         ptr, var_type = self.symbol_table[node.identifier]
         val = self.visit(node.expr)
         if val:
+            val = self._cast_if_needed(val, var_type)
             self.builder.store(val, ptr)
 
     # ─────────────────────────────────────────────────────────────────
-    # 3. Industrial Statements (Simulation via printf)
+    # 3. Hardware I/O (Sensors & Actuators) & Logging
     # ─────────────────────────────────────────────────────────────────
-    def visit_LogStmtNode(self, node: LogStmtNode):
-        fmt = self._get_string_ptr(f"[سجل] {node.message}\n")
-        printf_func = self.module.get_global("printf")
-        self.builder.call(printf_func, [fmt], name="printf_call")
+    def visit_VariableExprNode(self, node: VariableExprNode):
+        # Check if it's a Hardware Sensor
+        sym = self.mizan_symbols.get(node.identifier)
+        if sym and isinstance(sym, SensorSymbol):
+            addr_str = sym.address or "0x0"
+            addr_int = int(addr_str, 16) if addr_str.startswith('0x') else int(addr_str)
+            addr_val = ir.Constant(ir.IntType(32), addr_int)
+            return self.builder.call(self.read_sensor_func, [addr_val], name=f"read_{node.identifier}")
 
-    def visit_AlertStmtNode(self, node: AlertStmtNode):
-        fmt = self._get_string_ptr(f"[تنبيه {node.level}] {node.message}\n")
-        printf_func = self.module.get_global("printf")
-        self.builder.call(printf_func, [fmt], name="printf_call")
+        # Fallback to normal variable
+        if node.identifier not in self.symbol_table: return ir.Constant(ir.DoubleType(), 0.0)
+        ptr, var_type = self.symbol_table[node.identifier]
+        return self.builder.load(ptr, name=node.identifier)
 
     def visit_CommandStmtNode(self, node: CommandStmtNode):
-        val_str = node.value if isinstance(node.value, str) else "قيمة_ديناميكية"
-        fmt = self._get_string_ptr(f"[أمر] إرسال إلى '{node.identifier}' -> {val_str}\n")
-        printf_func = self.module.get_global("printf")
-        self.builder.call(printf_func, [fmt], name="printf_call")
+        sym = self.mizan_symbols.get(node.identifier)
+        if sym and isinstance(sym, ActuatorSymbol):
+            addr_str = sym.address or "0x0"
+            addr_int = int(addr_str, 16) if addr_str.startswith('0x') else int(addr_str)
+            addr_val = ir.Constant(ir.IntType(32), addr_int)
+            
+            if isinstance(node.value, str):
+                val_map = {'تشغيل': 1.0, 'ايقاف': 0.0, 'نشط': 1.0, 'غير_نشط': 0.0, 'مفتوح': 1.0, 'مغلق': 0.0}
+                write_val = ir.Constant(ir.DoubleType(), val_map.get(node.value, 1.0))
+            else:
+                write_val = self.visit(node.value)
+                write_val = self._cast_if_needed(write_val, ir.DoubleType())
+                
+            self.builder.call(self.write_actuator_func, [addr_val, write_val])
+            return
+            
+        if isinstance(node.value, ASTNode): self.visit(node.value)
+
+    def visit_LogStmtNode(self, node: LogStmtNode):
+        msg_ptr = self._get_string_ptr(f"[سجل] {node.message}\n")
+        self.builder.call(self.printf_func, [msg_ptr])
+
+    def visit_AlertStmtNode(self, node: AlertStmtNode):
+        msg_ptr = self._get_string_ptr(f"[تنبيه {node.level}] {node.message}\n")
+        self.builder.call(self.printf_func, [msg_ptr])
 
     # ─────────────────────────────────────────────────────────────────
-    # 4. Control Flow (Conditionals & Loops)
-    # ─────────────────────────────────────────────────────────────────
-    def _ensure_boolean(self, val):
-        """Helper to ensure a value is an i1 (boolean) for branching."""
-        if val is None: return ir.Constant(ir.IntType(1), 0)
-        if isinstance(val.type, ir.IntType) and val.type.width == 1:
-            return val
-        if isinstance(val.type, ir.DoubleType):
-            zero = ir.Constant(ir.DoubleType(), 0.0)
-            # ✅ FIX: llvmlite uses fcmp_ordered for floats
-            return self.builder.fcmp_ordered('!=', val, zero, "boolcast")
-        zero = ir.Constant(val.type, 0)
-        # ✅ FIX: llvmlite uses icmp_signed for integers
-        return self.builder.icmp_signed('!=', val, zero, "boolcast")
-
-    def visit_IfStmtNode(self, node: IfStmtNode):
-        cond_val = self._ensure_boolean(self.visit(node.condition))
-        
-        then_bb = self.function.append_basic_block("then")
-        merge_bb = self.function.append_basic_block("ifmerge")
-
-        if node.else_branch:
-            else_bb = self.function.append_basic_block("else")
-            self.builder.cbranch(cond_val, then_bb, else_bb)
-        else:
-            self.builder.cbranch(cond_val, then_bb, merge_bb)
-            else_bb = None
-
-        self.builder.position_at_end(then_bb)
-        for stmt in node.then_branch: self.visit(stmt)
-        self.builder.branch(merge_bb)
-
-        if else_bb:
-            self.builder.position_at_end(else_bb)
-            for stmt in node.else_branch: self.visit(stmt)
-            self.builder.branch(merge_bb)
-
-        self.builder.position_at_end(merge_bb)
-
-    def visit_WhileStmtNode(self, node: WhileStmtNode):
-        cond_bb = self.function.append_basic_block("while.cond")
-        body_bb = self.function.append_basic_block("while.body")
-        end_bb = self.function.append_basic_block("while.end")
-
-        self.builder.branch(cond_bb)
-        
-        self.builder.position_at_end(cond_bb)
-        cond_val = self._ensure_boolean(self.visit(node.condition))
-        self.builder.cbranch(cond_val, body_bb, end_bb)
-
-        self.builder.position_at_end(body_bb)
-        for stmt in node.body: self.visit(stmt)
-        self.builder.branch(cond_bb)
-
-        self.builder.position_at_end(end_bb)
-
-    def visit_ReturnStmtNode(self, node: ReturnStmtNode):
-        if node.expr:
-            val = self.visit(node.expr)
-            self.builder.ret(val)
-        else:
-            self.builder.ret_void()
-
-    # ─────────────────────────────────────────────────────────────────
-    # 5. Expressions (Math, Literals, Comparisons)
+    # 4. Math & Logic
     # ─────────────────────────────────────────────────────────────────
     def visit_NumberLiteralNode(self, node: NumberLiteralNode):
-        if isinstance(node.value, float):
-            return ir.Constant(ir.DoubleType(), float(node.value))
+        if isinstance(node.value, float): return ir.Constant(ir.DoubleType(), float(node.value))
         return ir.Constant(ir.IntType(32), int(node.value))
 
     def visit_BooleanLiteralNode(self, node: BooleanLiteralNode):
         return ir.Constant(ir.IntType(1), 1 if node.value else 0)
-
-    def visit_StringLiteralNode(self, node: StringLiteralNode):
-        return self._get_string_ptr(node.value)
-
-    def visit_VariableExprNode(self, node: VariableExprNode):
-        if node.identifier not in self.symbol_table: 
-            return ir.Constant(ir.DoubleType(), 0.0)
-        
-        ptr, var_type = self.symbol_table[node.identifier]
-        
-        # ✅ FIX: llvmlite 0.47.0 uses opaque pointers. We only pass the pointer!
-        return self.builder.load(ptr, name=node.identifier) 
 
     def visit_BinaryOpNode(self, node: BinaryOpNode):
         left_val = self.visit(node.left)
@@ -252,7 +239,6 @@ class IRGenerator:
         
         is_float = isinstance(left_val.type, ir.DoubleType) or isinstance(right_val.type, ir.DoubleType)
         
-        # Professional Type Promotion: Int -> Float if mixed
         if is_float:
             if not isinstance(left_val.type, ir.DoubleType): left_val = self.builder.sitofp(left_val, ir.DoubleType())
             if not isinstance(right_val.type, ir.DoubleType): right_val = self.builder.sitofp(right_val, ir.DoubleType())
@@ -263,12 +249,6 @@ class IRGenerator:
         elif node.op == '/': return self.builder.fdiv(left_val, right_val, "divtmp") if is_float else self.builder.sdiv(left_val, right_val, "divtmp")
         return left_val
 
-    def visit_UnaryMinusNode(self, node: UnaryMinusNode):
-        val = self.visit(node.operand)
-        if isinstance(val.type, ir.DoubleType):
-            return self.builder.fsub(ir.Constant(ir.DoubleType(), 0.0), val, "negtmp")
-        return self.builder.sub(ir.Constant(val.type, 0), val, "negtmp")
-
     def visit_CompExprNode(self, node: CompExprNode):
         left_val = self.visit(node.left)
         right_val = self.visit(node.right)
@@ -278,20 +258,6 @@ class IRGenerator:
         if is_float:
             if not isinstance(left_val.type, ir.DoubleType): left_val = self.builder.sitofp(left_val, ir.DoubleType())
             if not isinstance(right_val.type, ir.DoubleType): right_val = self.builder.sitofp(right_val, ir.DoubleType())
-            
-            # ✅ FIX: llvmlite uses fcmp_ordered and accepts standard operators ('>', '<', '==') directly!
             return self.builder.fcmp_ordered(node.op, left_val, right_val, "cmptmp")
         else:
-            # ✅ FIX: llvmlite uses icmp_signed and accepts standard operators directly!
             return self.builder.icmp_signed(node.op, left_val, right_val, "cmptmp")
-
-    def visit_BinaryCondNode(self, node: BinaryCondNode):
-        left_val = self._ensure_boolean(self.visit(node.left))
-        right_val = self._ensure_boolean(self.visit(node.right))
-        if node.op == 'AND': return self.builder.and_(left_val, right_val, "andtmp")
-        elif node.op == 'OR': return self.builder.or_(left_val, right_val, "ortmp")
-        return left_val
-
-    def visit_NotCondNode(self, node: NotCondNode):
-        val = self._ensure_boolean(self.visit(node.operand))
-        return self.builder.not_(val, "nottmp")
