@@ -145,7 +145,7 @@ def link_and_run(obj_filename="output.o", runtime_filename="runtime.c"):
             raise FileNotFoundError("Neither gcc nor clang found in PATH.")
         
         # 3. Execute the linker
-        subprocess.run(link_command, check=True, capture_output=True, text=True)
+        subprocess.run(link_command, check=True, capture_output=True, text=True, encoding='utf-8')
         print(f"✅ تم توليد الملف التنفيذي بنجاح: {exe_name}")
         
         # 4. Run the generated executable

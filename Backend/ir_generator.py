@@ -42,14 +42,18 @@ class IRGenerator:
         
         write_ty = ir.FunctionType(void, [i32, double])
         self.write_actuator_func = ir.Function(self.module, write_ty, name="write_actuator_register")
+        
         # Panic handler for division by zero
-    
         panic_ty = ir.FunctionType(void, [])
         self.panic_func = ir.Function(self.module, panic_ty, name="panic_div_zero")
 
         # Console setup for UTF-8 Arabic output
         setup_ty = ir.FunctionType(void, [])
         self.setup_console_func = ir.Function(self.module, setup_ty, name="setup_arabic_console")
+
+        # ✅ LAB 26: Arabic Terminal I/O Engine
+        print_arabic_ty = ir.FunctionType(void, [i8_ptr])
+        self.print_arabic_func = ir.Function(self.module, print_arabic_ty, name="print_arabic")
 
     def _get_llvm_type(self, ast_type_node):
         if isinstance(ast_type_node, BaseTypeNode):
@@ -259,12 +263,28 @@ class IRGenerator:
         if isinstance(node.value, ASTNode): self.visit(node.value)
 
     def visit_LogStmtNode(self, node: LogStmtNode):
-        msg_ptr = self._get_string_ptr(f"[سجل] {node.message}\n")
-        self.builder.call(self.printf_func, [msg_ptr])
+        # ✅ LAB 26 FIX: Combine prefix and message so they are reversed together!
+        full_msg = f"[سجل] {node.message}"
+        msg_ptr = self._get_string_ptr(full_msg)
+        
+        # 1. Print the combined message using the Arabic engine
+        self.builder.call(self.print_arabic_func, [msg_ptr])
+        
+        # 2. Print the newline using standard printf
+        newline_ptr = self._get_string_ptr("\n")
+        self.builder.call(self.printf_func, [newline_ptr])
 
     def visit_AlertStmtNode(self, node: AlertStmtNode):
-        msg_ptr = self._get_string_ptr(f"[تنبيه {node.level}] {node.message}\n")
-        self.builder.call(self.printf_func, [msg_ptr])
+        # ✅ LAB 26 FIX: Combine prefix and message so they are reversed together!
+        full_msg = f"[تنبيه {node.level}] {node.message}"
+        msg_ptr = self._get_string_ptr(full_msg)
+        
+        # 1. Print the combined message using the Arabic engine
+        self.builder.call(self.print_arabic_func, [msg_ptr])
+        
+        # 2. Print the newline using standard printf
+        newline_ptr = self._get_string_ptr("\n")
+        self.builder.call(self.printf_func, [newline_ptr])
 
     # ─────────────────────────────────────────────────────────────────
     # 4. Math & Logic
