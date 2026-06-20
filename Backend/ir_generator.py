@@ -47,6 +47,10 @@ class IRGenerator:
         panic_ty = ir.FunctionType(void, [])
         self.panic_func = ir.Function(self.module, panic_ty, name="panic_div_zero")
 
+        # Console setup for UTF-8 Arabic output
+        setup_ty = ir.FunctionType(void, [])
+        self.setup_console_func = ir.Function(self.module, setup_ty, name="setup_arabic_console")
+
     def _get_llvm_type(self, ast_type_node):
         if isinstance(ast_type_node, BaseTypeNode):
             if ast_type_node.type_name in ('حقيقي', 'عدد_حقيقي'): return ir.DoubleType()
@@ -119,12 +123,16 @@ class IRGenerator:
                 self._create_global_variable(decl)
             elif isinstance(decl, ProcedureDefNode):
                 self._create_procedure_signature(decl)
-                
+
         # Second pass: Generate main() and procedure bodies
         main_ty = ir.FunctionType(ir.IntType(32), [])
         self.function = ir.Function(self.module, main_ty, name="main")
         block = self.function.append_basic_block(name="entry")
         self.builder = ir.IRBuilder(block)
+
+        # ✅ LAB 24: Inject console setup at the very beginning of main!
+        # This ensures UTF-8 is active before any printf is called.
+        self.builder.call(self.setup_console_func, [])
         
         for decl in node.declarations:
             if isinstance(decl, ProcedureDefNode):
@@ -132,7 +140,16 @@ class IRGenerator:
             elif isinstance(decl, (VarDeclNode, ConstDeclNode)):
                 # Initialize global variables inside main's entry block
                 self._initialize_global_variable(decl)
-                
+
+        # ✅ LAB 24 FIX: Automatically call the first procedure found from main()
+        # so the executable actually executes the user's logic.
+        for decl in node.declarations:
+            if isinstance(decl, ProcedureDefNode):
+                func = self.module.get_global(decl.identifier)
+                if func:
+                    self.builder.call(func, [])
+                break # Only call the first one for this test
+
         self.builder.ret(ir.Constant(ir.IntType(32), 0))
 
     def _create_global_variable(self, node):

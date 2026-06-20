@@ -10,31 +10,32 @@ declare void @"write_actuator_register"(i32 %".1", double %".2")
 
 declare void @"panic_div_zero"()
 
-@"س" = global i32 0
-@"ص" = global i32 0
-@"ع" = global double              0x0
-@"مجهول" = global i32 0
-@"النتيجة" = global double              0x0
+declare void @"setup_arabic_console"()
+
+@"العمر" = global i32 0
+@"السنة_القادمة" = global i32 0
+define void @"تشغيل_النظام"()
+{
+entry:
+  %"العمر" = load i32, i32* @"العمر"
+  %"addtmp" = add i32 %"العمر", 1
+  store i32 %"addtmp", i32* @"السنة_القادمة"
+  %".3" = bitcast [67 x i8]* @"str_0" to i8*
+  %".4" = call i32 (i8*, ...) @"printf"(i8* %".3")
+  %".5" = bitcast [47 x i8]* @"str_1" to i8*
+  %".6" = call i32 (i8*, ...) @"printf"(i8* %".5")
+  ret void
+}
+
 define i32 @"main"()
 {
 entry:
-  store i32 5, i32* @"س"
-  store i32 10, i32* @"ص"
-  %"س" = load i32, i32* @"س"
-  %"ص" = load i32, i32* @"ص"
-  %"addtmp" = add i32 %"س", %"ص"
-  %"cast_to_float" = sitofp i32 %"addtmp" to double
-  store double %"cast_to_float", double* @"ع"
-  store i32 999, i32* @"مجهول"
-  %"ص.1" = load i32, i32* @"ص"
-  %"is_zero_trap" = icmp eq i32 %"ص.1", 0
-  br i1 %"is_zero_trap", label %"panic_block", label %"math_block"
-panic_block:
-  call void @"panic_div_zero"()
-  unreachable
-math_block:
-  %"divtmp" = sdiv i32 100, %"ص.1"
-  %"cast_to_float.1" = sitofp i32 %"divtmp" to double
-  store double %"cast_to_float.1", double* @"النتيجة"
+  call void @"setup_arabic_console"()
+  store i32 25, i32* @"العمر"
+  store i32 0, i32* @"السنة_القادمة"
+  call void @"تشغيل_النظام"()
   ret i32 0
 }
+
+@"str_0" = constant [67 x i8] c"[\d8\b3\d8\ac\d9\84] \d8\a7\d9\87\d9\84\d8\a7 \d8\a8\d9\83 \d9\81\d9\8a \d9\84\d8\ba\d8\aa\d9\83 \d8\a7\d9\84\d8\b9\d8\b1\d8\a8\d9\8a\d8\a9 \d8\a7\d9\84\d8\ae\d8\a7\d8\b5\d8\a9!\0a\00"
+@"str_1" = constant [47 x i8] c"[\d8\b3\d8\ac\d9\84] \d8\aa\d9\85 \d8\ad\d8\b3\d8\a7\d8\a8 \d8\a7\d9\84\d8\b9\d9\85\d8\b1 \d8\a8\d9\86\d8\ac\d8\a7\d8\ad.\0a\00"

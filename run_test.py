@@ -3,6 +3,7 @@ import sys
 import traceback
 import subprocess
 import tempfile
+import platform # ✅ LAB 24: Added for OS detection
 
 # Ensure the project root is in the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -52,7 +53,12 @@ def initialize_target_machine():
     print(f"🎯 المعمارية المستهدفة: {target_triple}")
     
     target = llvm.Target.from_default_triple()
-    target_machine = target.create_target_machine()
+    
+    # ✅ LAB 24 FIX: Explicitly set relocation model to 'static'.
+    # By default, LLVM generates Position Independent Code (PIC) which 
+    # references the _GLOBAL_OFFSET_TABLE_. Standard Windows executables (.exe) 
+    # require static relocations, not PIC.
+    target_machine = target.create_target_machine(reloc='static')
     
     return target_machine, target_triple
 
@@ -113,6 +119,57 @@ def optimize_ir(raw_llvm_ir: str) -> str:
     except Exception as e:
         print(f"⚠️ خطأ غير متوقع أثناء التحسين: {e}")
         return raw_llvm_ir
+
+# =====================================================================
+# ✅ LAB 24: Linker & Runner
+# =====================================================================
+def link_and_run(obj_filename="output.o", runtime_filename="runtime.c"):
+    # 1. Determine executable name based on OS
+    exe_name = "MyArabicApp.exe" if platform.system() == "Windows" else "./MyArabicApp"
+    
+    print(f"\n6️⃣ جاري استدعاء الرابط (Linker) لدمج {obj_filename} مع {runtime_filename}...")
+    try:
+        # 2. Build the linker command
+        # We try 'gcc' first (MinGW), then fallback to 'clang' (LLVM).
+        link_command = None
+        for compiler in ["gcc", "clang"]:
+            try:
+                subprocess.run([compiler, "--version"], capture_output=True, check=True)
+                link_command = [compiler, obj_filename, runtime_filename, "-o", exe_name]
+                print(f"🔧 استخدام {compiler} كمحرك ربط...")
+                break
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                continue
+        
+        if not link_command:
+            raise FileNotFoundError("Neither gcc nor clang found in PATH.")
+        
+        # 3. Execute the linker
+        subprocess.run(link_command, check=True, capture_output=True, text=True)
+        print(f"✅ تم توليد الملف التنفيذي بنجاح: {exe_name}")
+        
+        # 4. Run the generated executable
+        print("\n7️⃣ جاري تشغيل البرنامج العربي...")
+        print("=" * 40)
+        
+        # Capture output
+        result = subprocess.run([exe_name], capture_output=True, text=True, encoding='utf-8')
+        
+        # Print what our Arabic program generated
+        if result.stdout:
+            print(result.stdout)
+        
+        # Print any errors
+        if result.stderr:
+            print("أخطاء:", result.stderr)
+            
+        print("=" * 40)
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ فشل الرابط في توليد الملف التنفيذي.")
+        print(f"خطأ الرابط (stderr): {e.stderr}")
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
 
 # =====================================================================
 # Main Execution Pipeline
@@ -202,6 +259,9 @@ def main():
                 f.write(obj_data)
                 
             print(f"✅ تم توليد ملف الهدف (output.o) بنجاح! الحجم: {len(obj_data)} بايت.")
+
+            # --- Step E: Lab 24 - Linking and Execution ---
+            link_and_run("output.o", "runtime.c")
 
         else:
             print("⛔ تم إيقاف توليد الكود بسبب وجود أخطاء دلالية.")
