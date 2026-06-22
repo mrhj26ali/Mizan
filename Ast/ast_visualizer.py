@@ -1,5 +1,5 @@
 import graphviz
-from Mizan.Ast.nodes import *
+from Ast.nodes import *
 
 
 class ASTVisualizerVisitor:
@@ -9,19 +9,12 @@ class ASTVisualizerVisitor:
         self.dot.attr('node', shape='box', style='rounded,filled', fillcolor='white',
                       fontname='Arial', fontsize='11')
         self.dot.attr('edge', fontname='Arial', fontsize='9', color='#555555')
-        self._node_counter = 0  # للـ nodes التي تحتاج ID فريد بدون كائن
-
-    def _uid(self):
-        """يولّد ID فريد لـ nodes النصية التي ليس لها كائن Python."""
-        self._node_counter += 1
-        return f"_synthetic_{self._node_counter}"
 
     def render(self, root_node, output_filename='mizan_ast'):
         root_node.accept(self)
-        self.dot.render(output_filename, view=True)
+        self.dot.render(output_filename, view=False)
 
     def add_node_and_edge(self, parent, child, label=""):
-        """يضيف حافة من parent إلى child. يدعم Lists والـ ASTNodes."""
         if child is None:
             return
         if isinstance(child, list):
@@ -30,11 +23,6 @@ class ASTVisualizerVisitor:
         elif isinstance(child, ASTNode):
             child.accept(self)
             self.dot.edge(str(id(parent)), str(id(child)), label=label)
-        # نتجاهل القيم البدائية (str, float, int) — تُعرض داخل الـ node نفسه
-
-    # =========================================================
-    # الهيكل الأساسي للبرنامج
-    # =========================================================
 
     def visit_ProgramNode(self, node):
         self.dot.node(str(id(node)), "Program", fillcolor='#B0BEC5')
@@ -43,10 +31,6 @@ class ASTVisualizerVisitor:
 
     def visit_ProgramDeclNode(self, node):
         self.dot.node(str(id(node)), f"برنامج\n{node.name}", fillcolor='#90CAF9')
-
-    # =========================================================
-    # إعدادات الأجهزة
-    # =========================================================
 
     def visit_DeviceBlockNode(self, node):
         self.dot.node(str(id(node)), f"جهاز\n{node.identifier}", fillcolor='#81D4FA')
@@ -58,10 +42,6 @@ class ASTVisualizerVisitor:
         self.dot.node(str(id(node)), f"{node.key}\n{val}", fillcolor='#E3F2FD')
         if isinstance(node.value, ASTNode):
             self.add_node_and_edge(node, node.value, "قيمة")
-
-    # =========================================================
-    # الوحدات والأوضاع المخصصة
-    # =========================================================
 
     def visit_CustomUnitsBlockNode(self, node):
         self.dot.node(str(id(node)), "وحدات مخصصة", fillcolor='#CE93D8')
@@ -78,10 +58,6 @@ class ASTVisualizerVisitor:
 
     def visit_CustomModesBlockNode(self, node):
         self.dot.node(str(id(node)), f"أوضاع مخصصة\n{', '.join(node.modes)}", fillcolor='#CE93D8')
-
-    # =========================================================
-    # تعريف العتاد (Sensors & Actuators)
-    # =========================================================
 
     def visit_SensorDeclNode(self, node):
         self.dot.node(str(id(node)), f"حساس\n{node.identifier}", fillcolor='#80DEEA')
@@ -119,20 +95,12 @@ class ASTVisualizerVisitor:
         for s in node.statements:
             self.add_node_and_edge(node, s, "جملة")
 
-    # =========================================================
-    # الأنواع
-    # =========================================================
-
     def visit_BaseTypeNode(self, node):
         self.dot.node(str(id(node)), f"نوع\n{node.type_name}", fillcolor='#E8EAF6')
 
     def visit_ArrayTypeNode(self, node):
         self.dot.node(str(id(node)), f"مصفوفة[{node.size}]", fillcolor='#C5CAE9')
         self.add_node_and_edge(node, node.element_type, "نوع العنصر")
-
-    # =========================================================
-    # المتغيرات والثوابت
-    # =========================================================
 
     def visit_VarDeclNode(self, node):
         self.dot.node(str(id(node)), f"متغير\n{node.identifier}", fillcolor='#C8E6C9')
@@ -144,14 +112,9 @@ class ASTVisualizerVisitor:
         self.add_node_and_edge(node, node.var_type, "نوع")
         self.add_node_and_edge(node, node.expr, "قيمة")
 
-    # =========================================================
-    # الإجراءات
-    # =========================================================
-
     def visit_ProcedureDefNode(self, node):
         ret = f"\nيرجع: {node.return_type}" if node.return_type else ""
-        self.dot.node(str(id(node)), f"إجراء\n{node.identifier}{ret}", fillcolor='#CE93D8',
-                      fontcolor='white')
+        self.dot.node(str(id(node)), f"إجراء\n{node.identifier}{ret}", fillcolor='#CE93D8', fontcolor='white')
         for p in node.params:
             self.add_node_and_edge(node, p, "معامل")
         for s in node.body:
@@ -160,10 +123,6 @@ class ASTVisualizerVisitor:
     def visit_ParamNode(self, node):
         self.dot.node(str(id(node)), f"معامل\n{node.identifier}", fillcolor='#E1BEE7')
         self.add_node_and_edge(node, node.var_type, "نوع")
-
-    # =========================================================
-    # الأوضاع وقواعد الأمان
-    # =========================================================
 
     def visit_ModeBlockNode(self, node):
         self.dot.node(str(id(node)), f"وضع\n{node.mode_name}", fillcolor='#FFCC80')
@@ -180,10 +139,6 @@ class ASTVisualizerVisitor:
         for a in node.actions:
             self.add_node_and_edge(node, a, "تنفيذ")
 
-    # =========================================================
-    # الجمل البرمجية
-    # =========================================================
-
     def visit_CommandStmtNode(self, node):
         val = node.value if isinstance(node.value, str) else "expr"
         self.dot.node(str(id(node)), f"أمر\n{node.identifier} ← {val}", fillcolor='#FFCDD2')
@@ -191,8 +146,7 @@ class ASTVisualizerVisitor:
             self.add_node_and_edge(node, node.value, "قيمة")
 
     def visit_AlertStmtNode(self, node):
-        self.dot.node(str(id(node)), f"تنبيه [{node.level}]\n\"{node.message}\"",
-                      fillcolor='#EF9A9A')
+        self.dot.node(str(id(node)), f"تنبيه [{node.level}]\n\"{node.message}\"", fillcolor='#EF9A9A')
 
     def visit_LogStmtNode(self, node):
         self.dot.node(str(id(node)), f"سجل\n\"{node.message}\"", fillcolor='#CFD8DC')
@@ -241,10 +195,6 @@ class ASTVisualizerVisitor:
         if node.expr:
             self.add_node_and_edge(node, node.expr, "قيمة")
 
-    # =========================================================
-    # الشروط
-    # =========================================================
-
     def visit_BinaryCondNode(self, node):
         self.dot.node(str(id(node)), node.op, fillcolor='#FFF176')
         self.add_node_and_edge(node, node.left, "يسار")
@@ -265,8 +215,7 @@ class ASTVisualizerVisitor:
         self.add_node_and_edge(node, node.duration, "لمدة")
 
     def visit_VotingCondNode(self, node):
-        self.dot.node(str(id(node)), f"تصويت\n{node.threshold} من {node.total}",
-                      fillcolor='#DCEDC8')
+        self.dot.node(str(id(node)), f"تصويت\n{node.threshold} من {node.total}", fillcolor='#DCEDC8')
         for c in node.comparisons:
             self.add_node_and_edge(node, c, "مقارنة")
 
@@ -277,10 +226,6 @@ class ASTVisualizerVisitor:
 
     def visit_VariableCondNode(self, node):
         self.dot.node(str(id(node)), f"شرط-متغير\n{node.identifier}", fillcolor='#FFF9C4')
-
-    # =========================================================
-    # التعابير الحسابية
-    # =========================================================
 
     def visit_BinaryOpNode(self, node):
         self.dot.node(str(id(node)), f"عملية\n{node.op}", fillcolor='#FFFDE7')
@@ -312,10 +257,6 @@ class ASTVisualizerVisitor:
         if node.index_expr:
             self.add_node_and_edge(node, node.index_expr, "فهرس")
 
-    # =========================================================
-    # التصعيد (Escalation)
-    # =========================================================
-
     def visit_EscalationDefNode(self, node):
         self.dot.node(str(id(node)), f"تصعيد\n{node.identifier}", fillcolor='#FFAB91')
         for lv in node.levels:
@@ -327,7 +268,7 @@ class ASTVisualizerVisitor:
             self.add_node_and_edge(node, f, "حقل")
 
     def visit_EscalationFieldNode(self, node):
-        if isinstance(node.value, ASTNode):
+        if isinstance(node.value, ASTNode) and not isinstance(node.value, DurationNode):
             self.dot.node(str(id(node)), f"تصعيد-حقل\n{node.key}", fillcolor='#FBE9E7')
             self.add_node_and_edge(node, node.value, "إجراء")
         elif isinstance(node.value, DurationNode):
@@ -335,10 +276,6 @@ class ASTVisualizerVisitor:
             self.add_node_and_edge(node, node.value, "مدة")
         else:
             self.dot.node(str(id(node)), f"{node.key}\n{node.value}", fillcolor='#FBE9E7')
-
-    # =========================================================
-    # التقارير
-    # =========================================================
 
     def visit_ReportDefNode(self, node):
         self.dot.node(str(id(node)), f"تقرير\n{node.identifier}", fillcolor='#F48FB1')
@@ -356,21 +293,13 @@ class ASTVisualizerVisitor:
 
     def visit_ScheduleSpecNode(self, node):
         day = f" {node.day}" if node.day else ""
-        self.dot.node(str(id(node)),
-                      f"جدول\n{node.frequency}{day}\nالساعة {node.time}",
-                      fillcolor='#F8BBD0')
+        self.dot.node(str(id(node)), f"جدول\n{node.frequency}{day}\nالساعة {node.time}", fillcolor='#F8BBD0')
 
     def visit_ReportItemNode(self, node):
         func = f"{node.function_name} " if node.function_name else ""
         dur = f"\nخلال: {node.duration.value} {node.duration.unit}" if node.duration else ""
         ident = f"\n{node.identifier}" if node.identifier else ""
-        self.dot.node(str(id(node)),
-                      f"{node.kind}\n{func}{ident}{dur}\n\"{node.title}\"",
-                      fillcolor='#FCE4EC')
-
-    # =========================================================
-    # الانتقالات (FSM)
-    # =========================================================
+        self.dot.node(str(id(node)), f"{node.kind}\n{func}{ident}{dur}\n\"{node.title}\"", fillcolor='#FCE4EC')
 
     def visit_TransitionTableNode(self, node):
         self.dot.node(str(id(node)), "جدول الانتقالات", fillcolor='#FFD54F')
@@ -378,27 +307,15 @@ class ASTVisualizerVisitor:
             self.add_node_and_edge(node, r, "قاعدة")
 
     def visit_TransitionRuleNode(self, node):
-        self.dot.node(str(id(node)),
-                      f"انتقال\n{node.from_mode} → {node.to_mode}",
-                      fillcolor='#FFF9C4')
-
-    # =========================================================
-    # الوقت
-    # =========================================================
+        self.dot.node(str(id(node)), f"انتقال\n{node.from_mode} → {node.to_mode}", fillcolor='#FFF9C4')
 
     def visit_DurationNode(self, node):
         self.dot.node(str(id(node)), f"{node.value} {node.unit}", fillcolor='#B2EBF2')
 
-    # =========================================================
-    # احتياطي: أي node غير مغطى يظهر باللون الأحمر
-    # =========================================================
-
     def __getattr__(self, name):
         if name.startswith('visit_'):
             def _fallback(node):
-                self.dot.node(str(id(node)),
-                              f"⚠ {node.__class__.__name__}",
-                              fillcolor='#EF9A9A',
-                              style='rounded,filled,dashed')
+                self.dot.node(str(id(node)), f"⚠ {node.__class__.__name__}",
+                              fillcolor='#EF9A9A', style='rounded,filled,dashed')
             return _fallback
         raise AttributeError(name)

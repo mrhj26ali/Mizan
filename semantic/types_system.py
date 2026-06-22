@@ -1,332 +1,220 @@
 from enum import Enum, auto
-from typing import Optional
+from typing import Optional, Dict
 
-
-# =====================================================================
-# 1. تعداد الأنواع الأساسية (للاستخدام الداخلي والتشخيص)
-# =====================================================================
 
 class MizanType(Enum):
-    INT    = auto()
-    FLOAT  = auto()
-    BOOL   = auto()
-    STRING = auto()
-    UNIT   = auto()
-    ARRAY  = auto()
-    ERROR  = auto()
+    INT = auto(); FLOAT = auto(); BOOL = auto(); STRING = auto(); UNIT = auto(); ARRAY = auto(); ERROR = auto()
 
-
-# =====================================================================
-# 2. الصنف الأب لجميع الأنواع
-# =====================================================================
 
 class Type:
-    """الصنف الأب لكل أنواع لغة ميزان."""
+    kind: MizanType = None
+    def __eq__(self, other): return type(self) is type(other)
+    def __hash__(self): return hash(type(self))
+    def __repr__(self): return self.__str__()
+    def is_numeric(self) -> bool: return isinstance(self, (IntType, FloatType, UnitType))
+    def is_comparable(self) -> bool: return isinstance(self, (IntType, FloatType, BoolType, UnitType))
 
-    kind: MizanType = None  
-
-    def __eq__(self, other):
-        return type(self) is type(other)
-
-    def __hash__(self):
-        return hash(type(self))
-
-    def __repr__(self):
-        return self.__str__()
-
-    def is_numeric(self) -> bool:
-        """هل النوع قابل للعمليات الحسابية؟"""
-        return isinstance(self, (IntType, FloatType, UnitType))
-
-    def is_comparable(self) -> bool:
-        """هل النوع قابل للمقارنة؟"""
-        return isinstance(self, (IntType, FloatType, BoolType, UnitType))
-
-
-# =====================================================================
-# 3. الأنواع الأساسية
-# =====================================================================
 
 class IntType(Type):
     kind = MizanType.INT
-
-    def __str__(self):
-        return "صحيح"
-
+    def __str__(self): return "صحيح"
 
 class FloatType(Type):
     kind = MizanType.FLOAT
-
-    def __str__(self):
-        return "حقيقي"
-
+    def __str__(self): return "حقيقي"
 
 class BoolType(Type):
     kind = MizanType.BOOL
-
-    def __str__(self):
-        return "منطقي"
-
+    def __str__(self): return "منطقي"
 
 class StringType(Type):
     kind = MizanType.STRING
-
-    def __str__(self):
-        return "نص"
-
+    def __str__(self): return "نص"
 
 class ErrorType(Type):
-    """نوع خاص يُعاد عند وجود خطأ دلالي — يمنع تكرار الأخطاء."""
     kind = MizanType.ERROR
+    def __str__(self): return "خطأ_دلالي"
+    def __eq__(self, other): return isinstance(other, Type)
+    def __hash__(self): return hash(ErrorType)
 
-    def __str__(self):
-        return "خطأ_دلالي"
-
-    def __eq__(self, other):
-        return isinstance(other, Type)
-
-    def __hash__(self):
-        return hash(ErrorType)
-
-
-# =====================================================================
-# 4. نوع الوحدات الفيزيائية (ديناميكي)
-# =====================================================================
 
 class UnitType(Type):
-    """
-    يمثّل وحدات القياس الفيزيائية مثل: سيلزيوس، بار، فولت، ...
-    وكذلك الوحدات المخصصة التي يُعرّفها المستخدم.
-    """
+    """Physical unit type (ISO 80000 dimensional safety). Two UnitTypes are
+    equal iff their names match — the mechanism that prevents unit-confusion
+    bugs at compile time (the spec's core safety requirement)."""
     kind = MizanType.UNIT
-
     BUILTIN_UNITS = {
         'سيلزيوس', 'بار', 'باسكال', 'فولت', 'امبير',
         'دورة_في_الدقيقة', 'لتر_في_الدقيقة', 'بالمئة',
-        'متر', 'NTU', 'لا_وحدة', 'بار_في_الثانية',
-        'سيلزيوس_في_الثانية',
+        'متر', 'NTU', 'لا_وحدة', 'بار_في_الثانية', 'سيلزيوس_في_الثانية',
     }
 
-    def __init__(self, unit_name: str):
+    def __init__(self, unit_name: str, dimension: Optional[Dict[str, int]] = None):
         self.unit_name = unit_name
         self.is_builtin = unit_name in self.BUILTIN_UNITS
+        self.dimension = dimension
 
-    def __str__(self):
-        return f"وحدة({self.unit_name})"
-
+    def __str__(self): return f"وحدة({self.unit_name})"
     def __eq__(self, other):
-        if isinstance(other, UnitType):
-            return self.unit_name == other.unit_name
-        return False
+        return isinstance(other, UnitType) and self.unit_name == other.unit_name
+    def __hash__(self): return hash(('UnitType', self.unit_name))
 
-    def __hash__(self):
-        return hash(('UnitType', self.unit_name))
-
-
-# =====================================================================
-# 5. نوع المصفوفات
-# =====================================================================
 
 class ArrayType(Type):
-    """
-    مصفوفة ذات حجم ثابت.
-    مثال: صحيح[10]  →  ArrayType(element_type=INT_TYPE, size=10)
-    """
     kind = MizanType.ARRAY
-
     def __init__(self, element_type: Type, size: int):
         self.element_type = element_type
         self.size = size
-
-    def __str__(self):
-        return f"{self.element_type}[{self.size}]"
-
+    def __str__(self): return f"{self.element_type}[{self.size}]"
     def __eq__(self, other):
-        return (isinstance(other, ArrayType)
-                and self.element_type == other.element_type
+        return (isinstance(other, ArrayType) and self.element_type == other.element_type
                 and self.size == other.size)
-
-    def __hash__(self):
-        return hash(('ArrayType', self.element_type, self.size))
+    def __hash__(self): return hash(('ArrayType', self.element_type, self.size))
 
 
-# =====================================================================
-# 6. Singleton Instances (لتقليل استهلاك الذاكرة)
-# =====================================================================
-
-INT_TYPE    = IntType()
-FLOAT_TYPE  = FloatType()
-BOOL_TYPE   = BoolType()
+INT_TYPE = IntType()
+FLOAT_TYPE = FloatType()
+BOOL_TYPE = BoolType()
 STRING_TYPE = StringType()
-ERROR_TYPE  = ErrorType()
+ERROR_TYPE = ErrorType()
 
 
-# =====================================================================
-# 7. جدول العمليات الحسابية
-# =====================================================================
-
-
-_ARITHMETIC_TABLE: dict = {
-    (MizanType.INT,   '+', MizanType.INT):   MizanType.INT,
-    (MizanType.INT,   '-', MizanType.INT):   MizanType.INT,
-    (MizanType.INT,   '*', MizanType.INT):   MizanType.INT,
-    (MizanType.INT,   '/', MizanType.INT):   MizanType.FLOAT,  
-    (MizanType.INT,   '%', MizanType.INT):   MizanType.INT,
-
+_ARITHMETIC_TABLE = {
+    (MizanType.INT, '+', MizanType.INT): MizanType.INT,
+    (MizanType.INT, '-', MizanType.INT): MizanType.INT,
+    (MizanType.INT, '*', MizanType.INT): MizanType.INT,
+    (MizanType.INT, '/', MizanType.INT): MizanType.FLOAT,
+    (MizanType.INT, '%', MizanType.INT): MizanType.INT,
     (MizanType.FLOAT, '+', MizanType.FLOAT): MizanType.FLOAT,
     (MizanType.FLOAT, '-', MizanType.FLOAT): MizanType.FLOAT,
     (MizanType.FLOAT, '*', MizanType.FLOAT): MizanType.FLOAT,
     (MizanType.FLOAT, '/', MizanType.FLOAT): MizanType.FLOAT,
     (MizanType.FLOAT, '%', MizanType.FLOAT): MizanType.FLOAT,
-
-    (MizanType.INT,   '+', MizanType.FLOAT): MizanType.FLOAT,
-    (MizanType.INT,   '-', MizanType.FLOAT): MizanType.FLOAT,
-    (MizanType.INT,   '*', MizanType.FLOAT): MizanType.FLOAT,
-    (MizanType.INT,   '/', MizanType.FLOAT): MizanType.FLOAT,
-    (MizanType.FLOAT, '+', MizanType.INT):   MizanType.FLOAT,
-    (MizanType.FLOAT, '-', MizanType.INT):   MizanType.FLOAT,
-    (MizanType.FLOAT, '*', MizanType.INT):   MizanType.FLOAT,
-    (MizanType.FLOAT, '/', MizanType.INT):   MizanType.FLOAT,
-
+    (MizanType.INT, '+', MizanType.FLOAT): MizanType.FLOAT,
+    (MizanType.INT, '-', MizanType.FLOAT): MizanType.FLOAT,
+    (MizanType.INT, '*', MizanType.FLOAT): MizanType.FLOAT,
+    (MizanType.INT, '/', MizanType.FLOAT): MizanType.FLOAT,
+    (MizanType.FLOAT, '+', MizanType.INT): MizanType.FLOAT,
+    (MizanType.FLOAT, '-', MizanType.INT): MizanType.FLOAT,
+    (MizanType.FLOAT, '*', MizanType.INT): MizanType.FLOAT,
+    (MizanType.FLOAT, '/', MizanType.INT): MizanType.FLOAT,
 }
 
 _COMPARISON_OPS = {'==', '!=', '>', '<', '>=', '<='}
+_OP_ALIASES = {'MUL': '*', 'DIV': '/', 'MOD': '%', 'PLUS': '+', 'MINUS': '-',
+               'EQ': '==', 'NEQ': '!=', 'GT': '>', 'LT': '<', 'GTE': '>=', 'LTE': '<='}
+_KIND_TO_SINGLETON = {MizanType.INT: INT_TYPE, MizanType.FLOAT: FLOAT_TYPE, MizanType.BOOL: BOOL_TYPE}
 
-_OP_ALIASES = {
-    'MUL': '*', 'DIV': '/', 'MOD': '%',
-    'PLUS': '+', 'MINUS': '-',
-    'EQ': '==', 'NEQ': '!=',
-    'GT': '>', 'LT': '<', 'GTE': '>=', 'LTE': '<=',
-}
-
-_KIND_TO_SINGLETON = {
-    MizanType.INT:   INT_TYPE,
-    MizanType.FLOAT: FLOAT_TYPE,
-    MizanType.BOOL:  BOOL_TYPE,
-}
-
-
-# =====================================================================
-# 8. دالة التحقق من الأنواع (Type Checking)
-# =====================================================================
 
 def get_result_type(left_type: Type, operator: str, right_type: Type) -> Type:
-    """
-    تُحدّد نوع نتيجة عملية ثنائية بناءً على نوعَي المعاملَين والمشغّل.
-
-    تدعم:
-    - العمليات الحسابية: + - * / %
-    - عمليات المقارنة:  == != > < >= <=
-    - الوحدات الفيزيائية (نفس الوحدة)
-    - أسماء مشغّلات الـ Grammar مثل 'MUL', 'PLUS', ...
-    - ErrorType يُعيد ErrorType مباشرة (لوقف تسلسل الأخطاء)
-    """
     if isinstance(left_type, ErrorType) or isinstance(right_type, ErrorType):
         return ERROR_TYPE
-
     op = _OP_ALIASES.get(operator, operator)
 
     if op in _COMPARISON_OPS:
-        if left_type.is_comparable() and right_type.is_comparable():
-            return BOOL_TYPE
-        return ERROR_TYPE
+        return BOOL_TYPE if (left_type.is_comparable() and right_type.is_comparable()) else ERROR_TYPE
 
     if isinstance(left_type, UnitType) and isinstance(right_type, UnitType):
         if left_type == right_type and op in ('+', '-'):
-            return left_type          
-        if op in ('*', '/'):
-            if op == '*':
-                return UnitType(f"{left_type.unit_name}·{right_type.unit_name}")
-            else:
-                return UnitType(f"{left_type.unit_name}/{right_type.unit_name}")
+            return left_type
+        if op == '*':
+            return UnitType(f"{left_type.unit_name}·{right_type.unit_name}")
+        if op == '/':
+            return UnitType(f"{left_type.unit_name}/{right_type.unit_name}")
         return ERROR_TYPE
+
+    if isinstance(left_type, UnitType) and isinstance(right_type, (IntType, FloatType)):
+        return left_type
+    if isinstance(right_type, UnitType) and isinstance(left_type, (IntType, FloatType)):
+        return right_type
 
     key = (left_type.kind, op, right_type.kind)
     result_kind = _ARITHMETIC_TABLE.get(key)
-    if result_kind is not None:
-        return _KIND_TO_SINGLETON.get(result_kind, ERROR_TYPE)
+    return _KIND_TO_SINGLETON.get(result_kind, ERROR_TYPE) if result_kind is not None else ERROR_TYPE
 
-    return ERROR_TYPE
-
-
-# =====================================================================
-# 9. دوال مساعدة
-# =====================================================================
 
 def create_unit_type(name: str) -> UnitType:
-    """ينشئ UnitType جديداً بالاسم المُعطى."""
     return UnitType(name)
 
 
 def types_compatible(declared: Type, actual: Type) -> bool:
-    """
-    يتحقق من توافق نوعَين للإسناد والتهيئة.
-    """
     if isinstance(declared, ErrorType) or isinstance(actual, ErrorType):
         return True
     if declared == actual:
         return True
-    
-    # ✅ FIX 1: Allow implicit widening from INT to FLOAT
     if isinstance(declared, FloatType) and isinstance(actual, IntType):
         return True
-        
-    # ✅ FIX 2: Allow raw numeric literals (INT/FLOAT) to initialize physical units (UnitType)
     if isinstance(declared, UnitType) and isinstance(actual, (IntType, FloatType)):
         return True
-        
+    if isinstance(declared, (FloatType, IntType)) and isinstance(actual, UnitType):
+        return True
     return False
 
 
 def type_from_name(name: str) -> Type:
-    """
-    يُعيد كائن Type من اسم النوع العربي.
-    مفيد في resolve_type داخل المحلل الدلالي.
-    """
-    mapping = {
-        'منطقي':      BOOL_TYPE,
-        'صحيح':       INT_TYPE,
-        'عدد_صحيح':   INT_TYPE,
-        'حقيقي':      FLOAT_TYPE,
-        'عدد_حقيقي':  FLOAT_TYPE,
-        'نص':         STRING_TYPE,
-    }
+    mapping = {'منطقي': BOOL_TYPE, 'صحيح': INT_TYPE, 'عدد_صحيح': INT_TYPE,
+               'حقيقي': FLOAT_TYPE, 'عدد_حقيقي': FLOAT_TYPE, 'نص': STRING_TYPE}
     if name in mapping:
         return mapping[name]
     if name in UnitType.BUILTIN_UNITS:
         return UnitType(name)
     return ERROR_TYPE
+
+
 def is_literal_number(type_obj) -> bool:
-    """يتحقق مما إذا كان النوع رقماً حرفياً (INT أو FLOAT)."""
     return isinstance(type_obj, (IntType, FloatType))
 
+
 def units_compatible_for_op(left, right, op: str) -> bool:
-    """
-    يتحقق من توافق الوحدات للعمليات الحسابية.
-    - الجمع والطرح: يجب أن تكون الوحدات متطابقة
-    - الضرب والقسمة: يُسمح بأي وحدات (ينتج وحدة جديدة)
-    - المقارنة: يجب أن تكون الوحدات متطابقة، أو أحد الطرفين رقم حرفي
-    """
-    # إذا كان كلا الطرفين وحدات فيزيائية
     if isinstance(left, UnitType) and isinstance(right, UnitType):
         if op in ('+', '-'):
-            # الجمع والطرح يتطلبان وحدات متطابقة
             return left.unit_name == right.unit_name
         elif op in ('*', '/'):
-            # الضرب والقسمة يُسمح بهما (ينتج وحدة مركبة)
             return True
         elif op in ('==', '!=', '>', '<', '>=', '<='):
-            # المقارنة تتطلب وحدات متطابقة
             return left.unit_name == right.unit_name
-    
-    # إذا كان أحد الطرفين وحدة فيزيائية والآخر رقم حرفي
     if isinstance(left, UnitType) and is_literal_number(right):
-        return True  # الرقم الحرفي يتبنى الوحدة
+        return True
     if is_literal_number(left) and isinstance(right, UnitType):
-        return True  # الرقم الحرفي يتبنى الوحدة
-    
-    # إذا كان كلا الطرفين أرقاماً حرفية
+        return True
     if is_literal_number(left) and is_literal_number(right):
         return True
-    
     return False
+
+
+# ── Dimensional algebra for custom units (وحدات_مخصصة) ─────────────
+
+_DIM_KEYWORD_AXES = {
+    'MASS_KW': 'mass', 'كتلة': 'mass', 'VOLUME_KW': 'volume', 'حجم': 'volume',
+    'TIME_DIM_KW': 'time', 'زمن': 'time', 'LENGTH_KW': 'length', 'طول': 'length',
+    'TEMP_DIM_KW': 'temperature', 'درجة_حرارة': 'temperature',
+    'CURRENT_DIM_KW': 'current', 'تيار': 'current', 'VOLTAGE_DIM_KW': 'voltage', 'جهد': 'voltage',
+    'PRESSURE_DIM_KW': 'pressure', 'ضغط': 'pressure', 'COUNT_DIM_KW': 'count', 'عدد': 'count',
+    'ENERGY_KW': 'energy', 'طاقة': 'energy',
+}
+
+
+def compute_dimension_signature(elements) -> Dict[str, int]:
+    """Converts DimensionExprNode.elements (e.g. ['كتلة','/','حجم']) into a
+    dimensional exponent signature {'mass': 1, 'volume': -1}, so two custom
+    units defined independently with the same physical basis are recognized
+    as equivalent regardless of the identifier name chosen."""
+    signature: Dict[str, int] = {}
+    pending_op = '*'
+    for el in elements:
+        if el in ('/', 'DIV'):
+            pending_op = '/'
+        elif el in ('*', 'MUL'):
+            pending_op = '*'
+        else:
+            axis = _DIM_KEYWORD_AXES.get(el)
+            if axis is None:
+                continue
+            delta = 1 if pending_op == '*' else -1
+            signature[axis] = signature.get(axis, 0) + delta
+            pending_op = '*'
+    return {k: v for k, v in signature.items() if v != 0}
+
+
+def dimension_signatures_equal(sig_a: Dict[str, int], sig_b: Dict[str, int]) -> bool:
+    return sig_a == sig_b
