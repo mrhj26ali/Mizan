@@ -1,11 +1,10 @@
-// runtime/runtime.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <math.h>
 #include <sys/stat.h>
-#include <stdint.h>   // REQUIRED for int64_t
+#include <stdint.h>
 #include <direct.h>
 
 #ifdef _WIN32
@@ -16,8 +15,8 @@
 #define SLEEP_MS(ms) do { struct timespec ts = {(ms)/1000, ((ms)%1000)*1000000L}; nanosleep(&ts,NULL); } while(0)
 #endif
 
+// ✅ FIX: Include the proper header instead of re-declaring
 #include "mizan_mqtt.h"
-void mizan_mqtt_publish(void* ctx, const char* topic, const char* payload);
 
 // ─── Console & Arabic output ───────────────────────────────────────
 void setup_arabic_console(void) {
@@ -32,9 +31,10 @@ static int decode_utf8(const char* s, unsigned int* cp) {
     unsigned char c = (unsigned char)s[0];
     if (c < 0x80) { *cp = c; return 1; }
     if ((c & 0xE0) == 0xC0) { *cp = ((c&0x1F)<<6)|((unsigned char)s[1]&0x3F); return 2; }
-    if ((c & 0xF0) == 0xE0) { *cp = ((c&0x0F)<<12)|((unsigned char)s[1]&0x3F)<<6|((unsigned char)s[2]&0x3F); return 3; }
+    if ((c & 0xF0) == 0xE0) { *cp = ((c&0x0F)<<12)|(((unsigned char)s[1]&0x3F)<<6)|((unsigned char)s[2]&0x3F); return 3; }
     *cp = c; return 1;
 }
+
 static int encode_utf8(unsigned int cp, char* out) {
     if (cp < 0x80) { out[0]=cp; return 1; }
     if (cp < 0x800) { out[0]=0xC0|(cp>>6); out[1]=0x80|(cp&0x3F); return 2; }
@@ -49,8 +49,6 @@ void print_arabic(const char* utf8) {
         int r = decode_utf8(utf8+i, &cps[cnt++]);
         i += r;
     }
-    // Reverse for RTL visual order
-    for (int a=0, b=cnt-1; a<b; a++, b--) { unsigned int t=cps[a]; cps[a]=cps[b]; cps[b]=t; }
     char buf[4096]; int bi = 0;
     for (int i = 0; i < cnt && bi < 4090; i++) bi += encode_utf8(cps[i], buf+bi);
     buf[bi] = '\0';
@@ -65,11 +63,11 @@ void mizan_log(const char* msg) {
 void mizan_alert(int level, const char* msg) {
     const char* lvl = level==3?"🔴 حرج":level==2?"🟠 تحذير":"🟡 إعلامي";
     fprintf(stderr, "[تنبيه %s] ", lvl); print_arabic(msg);
-    extern void* _g_mqtt;
+    
     if (_g_mqtt) {
         char topic[64], payload[512];
         snprintf(topic, sizeof(topic), "mizan/alerts/%d", level);
-        snprintf(payload, sizeof(payload), "{\"level\":%d,\"message\":\"%s\",\"ts\":%lld}",
+        snprintf(payload, sizeof(payload), "{\"level\":%d,\"message\":\"%s\",\"ts\":%lld}", 
                  level, msg, (long long)time(NULL));
         mizan_mqtt_publish(_g_mqtt, topic, payload);
     }
@@ -80,7 +78,7 @@ void panic_div_zero(void) {
     exit(101);
 }
 
-// ─── Time (FIXED: int64_t instead of long) ─────────────────────────
+// ─── Time ──────────────────────────────────────────────────────────
 int64_t mizan_now_ms(void) {
 #ifdef _WIN32
     return (int64_t)GetTickCount64();
@@ -95,12 +93,13 @@ void mizan_sleep_ms(int64_t ms) {
     if (ms > 0) SLEEP_MS(ms);
 }
 
-// ─── Ring buffers (FIXED: int64_t for timestamps and window) ───────
+// ─── Ring buffers ──────────────────────────────────────────────────
 #define MAX_SENSORS  64
 #define RING_CAP    4096
 
-typedef struct { double val; int64_t ts; } Sample; // FIXED: int64_t ts
+typedef struct { double val; int64_t ts; } Sample;
 typedef struct { Sample s[RING_CAP]; int head; int cnt; } Ring;
+
 static Ring g_rings[MAX_SENSORS];
 
 void mizan_ring_push(int sid, double v) {
@@ -113,13 +112,18 @@ void mizan_ring_push(int sid, double v) {
 }
 
 typedef struct { double sum,mn,mx; int n; } Acc;
+
 static void _acc(double v, Acc* a) {
     a->sum+=v; if(v<a->mn)a->mn=v; if(v>a->mx)a->mx=v; a->n++;
 }
 
-static Acc _scan(int sid, int64_t wms) { // FIXED: int64_t wms
+static Acc _scan(int sid, int64_t wms) {
     Acc a = {0.0, 1e18, -1e18, 0};
     Ring* r = &g_rings[sid];
+    
+    // ✅ CRITICAL FIX: If buffer is empty, return safe defaults immediately
+    if (r->cnt == 0) return a;
+
     int64_t cut = mizan_now_ms()-wms;
     int idx = (r->head-1+RING_CAP)%RING_CAP;
     for (int i=0;i<r->cnt;i++) {
@@ -130,15 +134,18 @@ static Acc _scan(int sid, int64_t wms) { // FIXED: int64_t wms
     return a;
 }
 
-double mizan_ring_avg (int sid, int64_t wms) { Acc a=_scan(sid,wms); return a.n?a.sum/a.n:0; }
-double mizan_ring_max (int sid, int64_t wms) { Acc a=_scan(sid,wms); return a.n?a.mx:0; }
-double mizan_ring_min (int sid, int64_t wms) { Acc a=_scan(sid,wms); return a.n?a.mn:0; }
+// ✅ CRITICAL FIX: Check a.n to prevent returning -1e18 or NaN
+double mizan_ring_avg (int sid, int64_t wms) { Acc a=_scan(sid,wms); return a.n ? a.sum/a.n : 0.0; }
+double mizan_ring_max (int sid, int64_t wms) { Acc a=_scan(sid,wms); return a.n ? a.mx : 0.0; }
+double mizan_ring_min (int sid, int64_t wms) { Acc a=_scan(sid,wms); return a.n ? a.mn : 0.0; }
 double mizan_ring_sum (int sid, int64_t wms) { return _scan(sid,wms).sum; }
+
 double mizan_ring_last(int sid) {
     Ring* r=&g_rings[sid];
     if(!r->cnt) return 0;
     return r->s[(r->head-1+RING_CAP)%RING_CAP].val;
 }
+
 double mizan_ring_rate(int sid, int64_t wms) {
     Ring* r=&g_rings[sid];
     if(r->cnt<2) return 0;
@@ -155,11 +162,11 @@ double mizan_ring_rate(int sid, int64_t wms) {
     return dt>0?(newest.val-oldest.val)/dt:0;
 }
 
-// ─── Health tracking (FIXED: int64_t) ──────────────────────────────
-typedef struct { int64_t first_stuck; double last_val; int has_last; } Health; // FIXED
+// ─── Health tracking ───────────────────────────────────────────────
+typedef struct { int64_t first_stuck; double last_val; int has_last; } Health;
 static Health g_health[MAX_SENSORS];
 
-int64_t mizan_health_track_stuck(int sid, double v, int64_t thr) { // FIXED
+int64_t mizan_health_track_stuck(int sid, double v, int64_t thr) {
     if(sid<0||sid>=MAX_SENSORS) return 0;
     Health* h=&g_health[sid];
     int same = h->has_last && fabs(v-h->last_val)<1e-9;
@@ -172,12 +179,12 @@ int mizan_health_out_of_range(double v, double mn, double mx) {
     return (v<mn||v>mx)?1:0;
 }
 
-// ─── Escalation engine (FIXED: int64_t) ────────────────────────────
+// ─── Escalation engine ─────────────────────────────────────────────
 #define MAX_ESC 32
-typedef struct { int active; int chain; int level; int64_t deadline; char msg[256]; char recv[128]; } EscTimer; // FIXED
+typedef struct { int active; int chain; int level; int64_t deadline; char msg[256]; char recv[128]; } EscTimer;
 static EscTimer g_esc[MAX_ESC]; static int g_esc_n=0;
 
-void mizan_escalation_arm(int chain, int level, int64_t tms, const char* msg, const char* recv) { // FIXED
+void mizan_escalation_arm(int chain, int level, int64_t tms, const char* msg, const char* recv) {
     if(g_esc_n>=MAX_ESC) return;
     EscTimer* t=&g_esc[g_esc_n++];
     t->active=1; t->chain=chain; t->level=level;
@@ -191,7 +198,7 @@ void mizan_escalation_tick(void) {
     for(int i=0;i<g_esc_n;i++){
         if(!g_esc[i].active) continue;
         if(now>=g_esc[i].deadline){
-            fprintf(stderr,"[تصعيد] 🔺 انتهت المهلة! المستلم: %s | الرسالة: %s\n",
+            fprintf(stderr,"[تصعيد] 🔺 انتهت المهلة! المستلم: %s | الرسالة: %s\n", 
                     g_esc[i].recv, g_esc[i].msg);
             g_esc[i].active=0;
         }
@@ -207,7 +214,7 @@ static void _mkdirs(const char* path) {
 #else
         mkdir(tmp,0755);
 #endif
-        *p='/';}
+    *p='/';}
 #ifdef _WIN32
     _mkdir(tmp);
 #else
@@ -215,17 +222,19 @@ static void _mkdirs(const char* path) {
 #endif
 }
 
-extern void* _g_mqtt;
-
 void mizan_report_write(const char* rid, const char* fmt, const char* dir, const char* payload) {
     const char* env_dir = getenv("MIZAN_DATA_DIR");
     if (env_dir) dir = env_dir;
     _mkdirs(dir);
+    
     char path[768];
     snprintf(path,sizeof(path),"%s/%s_%lld.%s", dir, rid, (long long)time(NULL), fmt);
+    
     FILE* f=fopen(path,"w");
     if(f){ fprintf(f,"%s\n",payload); fclose(f);
-           printf("[تقرير] 📄 تم حفظ: %s\n",path); }
+        printf("[تقرير] 📄 تم حفظ: %s\n",path); 
+    }
+    
     if(_g_mqtt){
         char topic[128]; snprintf(topic,sizeof(topic),"mizan/reports/%s",rid);
         mizan_mqtt_publish(_g_mqtt, topic, payload);
