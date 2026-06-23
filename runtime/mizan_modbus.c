@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <stdint.h>
 
 typedef struct {
     modbus_t* ctx;
@@ -44,25 +45,43 @@ static int _reconnect(MBCtx* c) {
     return c->connected;
 }
 
+// ✅ FIX: Manual Big-Endian (ABCD) to Float conversion
+// This guarantees compatibility with pymodbus's ">f" struct packing
 double mizan_modbus_read(void* raw, int address) {
     MBCtx* c = (MBCtx*)raw;
     if (!c) return 0.0;
     if (!c->connected && !_reconnect(c)) return 0.0;
+    
     uint16_t regs[2] = {0,0};
     if (modbus_read_registers(c->ctx, address, 2, regs) == -1) {
         c->connected = 0;
         return 0.0;
     }
-    float v = modbus_get_float_abcd(regs);
+    
+    // regs[0] is AB, regs[1] is CD. Combine into a 32-bit integer.
+    uint32_t i = ((uint32_t)regs[0] << 16) | regs[1];
+    float v;
+    // Copy the exact bytes into a float variable
+    memcpy(&v, &i, sizeof(float));
+    
     return (double)v;
 }
 
+// ✅ FIX: Manual Float to Big-Endian (ABCD) conversion
 void mizan_modbus_write(void* raw, int address, double value) {
     MBCtx* c = (MBCtx*)raw;
     if (!c) return;
     if (!c->connected && !_reconnect(c)) return;
+    
+    float f = (float)value;
+    uint32_t i;
+    // Copy the float bytes into a 32-bit integer
+    memcpy(&i, &f, sizeof(float));
+    
     uint16_t regs[2];
-    modbus_set_float_abcd((float)value, regs);
+    regs[0] = (uint16_t)((i >> 16) & 0xFFFF); // AB
+    regs[1] = (uint16_t)(i & 0xFFFF);         // CD
+    
     if (modbus_write_registers(c->ctx, address, 2, regs) == -1)
         c->connected = 0;
 }
