@@ -3,7 +3,7 @@ import os, json, glob
 
 out_path = "reports_summary.txt"
 # Find all JSON files in the mizan_reports folder and sort them by timestamp
-files = sorted(glob.glob("mizan_reports/*.json"))
+files = sorted(glob.glob("reports/*.json"))
 
 if not files:
     print("❌ لم يتم العثور على أي تقارير في مجلد mizan_reports/")

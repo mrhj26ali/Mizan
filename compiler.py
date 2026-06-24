@@ -70,7 +70,7 @@ def link_and_run(obj: str, runtime_dir: str, run_after: bool, out_name=None) -> 
     for compiler in ["clang","gcc"]:
         try:
             subprocess.run([compiler,"--version"], capture_output=True, check=True)
-            cmd = [compiler, obj] + rt_sources + ["-o", exe]
+            cmd = [compiler, "-finput-charset=UTF-8", "-fexec-charset=UTF-8", obj] + rt_sources + ["-o", exe]
             cmd += ["-lmodbus", "-lmosquitto", "-lm"]
             if is_win:
                 cmd += ["-lws2_32"]
