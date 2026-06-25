@@ -1,5 +1,5 @@
 // =====================================================================
-// MIZAN GRAMMAR v1.0 (Final Locked Baseline + Enhancements)
+// MIZAN GRAMMAR v1.6 (Predictive Maintenance & Enterprise SCADA)
 // Arabic-native compiled DSL for industrial process monitoring
 // Target: Native ELF via LLVM (llvmlite)
 // =====================================================================
@@ -32,9 +32,8 @@ topLevelDecl
 // ── Program & Device Configuration ────────────────────────────────
 programDecl : BARNMJ ID SEMI ;
 
-// Unified Block Syntax for Device
 deviceBlock
-    : JHAZ ID LBRACE deviceField (fieldSep deviceField)* RBRACE SEMI
+    : JHAZ ID LBRACE deviceField (COMMA deviceField)* COMMA? RBRACE SEMI
     ;
 
 deviceField
@@ -49,32 +48,40 @@ deviceField
 
 // ── Custom Units & Modes ──────────────────────────────────────────
 customUnitsBlock
-    : CUSTOM_UNITS_KW LBRACE customUnitDef (fieldSep customUnitDef)* RBRACE SEMI
+    : CUSTOM_UNITS_KW LBRACE customUnitDef (COMMA customUnitDef)* COMMA? RBRACE SEMI
     ;
-customUnitDef : ID COLON dimensionExpr ;
-dimensionExpr : baseDim ((DIV | MUL) baseDim)* ;
-baseDim
-    : MASS_KW | VOLUME_KW | TIME_DIM_KW | LENGTH_KW | TEMP_DIM_KW
-    | CURRENT_DIM_KW | VOLTAGE_DIM_KW | PRESSURE_DIM_KW | COUNT_DIM_KW | ENERGY_KW
+
+// ✅ PURE CONCRETE: Only real-world units allowed!
+customUnitDef : ID COLON unitExpr ;
+
+unitExpr
+    : unitExpr op=(MUL | DIV) unitTerm  # UnitMathExpr   // e.g., لتر / دقيقة
+    | unitTerm                          # UnitPass       // e.g., لتر (Alias)
+    ;
+
+// ✅ SIMPLIFIED: No more baseDim! Just concrete units or parentheses.
+unitTerm
+    : unitType                          # UnitBase       
+    | LPAREN unitExpr RPAREN            # UnitParen      
     ;
 
 customModesBlock
-    : CUSTOM_MODES_KW LBRACE (ID SEMI)* RBRACE SEMI
+    : CUSTOM_MODES_KW LBRACE (ID (COMMA ID)* COMMA?)? RBRACE SEMI
     ;
 
 // ── Hardware Declarations (UNIFIED BLOCK SYNTAX) ──────────────────
 sensorDecl
-    : SENSOR_KW ID LBRACE sensorField (fieldSep sensorField)* RBRACE SEMI
+    : SENSOR_KW ID LBRACE sensorField (COMMA sensorField)* COMMA? RBRACE SEMI
     ;
 sensorField
     : TYPE_KW      COLON varType
     | RANGE_KW     COLON rangeSpec
     | ADDRESS_KW   COLON REGISTER
-    | HEALTH_KW    LBRACE healthRule (fieldSep healthRule)* RBRACE
+    | HEALTH_KW    LBRACE (healthRule (COMMA healthRule)* COMMA?)? RBRACE
     ;
 
 actuatorDecl
-    : ACTUATOR_KW ID LBRACE actuatorField (fieldSep actuatorField)* RBRACE SEMI
+    : ACTUATOR_KW ID LBRACE actuatorField (COMMA actuatorField)* COMMA? RBRACE SEMI
     ;
 actuatorField
     : TYPE_KW    COLON varType
@@ -109,7 +116,7 @@ modeBlock
     ;
 modeName
     : STARTUP_KW
-    | RUN_KW        // CONFLICT RESOLVED: Context distinguishes from actuatorValue
+    | RUN_KW        
     | MAINTENANCE_KW
     | EMERGENCY_KW
     | ID
@@ -118,18 +125,15 @@ modeName
 onStartBlock : ON_START_KW LBRACE statement* RBRACE ;
 
 ruleBlock
-    : RULE_KW ID LBRACE localDecl* conditionClause actionClause RBRACE
+    : RULE_KW ID LBRACE localDecl* statement* RBRACE
     ;
 localDecl       : sensorDecl | varDecl | constDecl ;
-conditionClause : CONDITION_KW COLON condition SEMI ;
-actionClause    : EXECUTE_KW LBRACE statement* RBRACE ;
 
 // ── Statements ────────────────────────────────────────────────────
 statement
     : commandStmt
     | alertStmt
     | logStmt
-    | execProcStmt
     | gotoStmt
     | waitStmt
     | assignStmt
@@ -147,14 +151,15 @@ alertStmt     : ALERT_KW alertLevel STRING_LIT SEMI ;
 alertLevel    : LEVEL_1 | LEVEL_2 | LEVEL_3 ;
 
 logStmt       : LOG_KW STRING_LIT SEMI ;
-execProcStmt  : EXEC_KW PROC_KW ID LPAREN argList? RPAREN SEMI ;
+
 gotoStmt      : GOTO_KW modeName SEMI ;
 waitStmt      : WAIT_KW duration SEMI ;
 assignStmt    : ID (LBRACKET expr RBRACKET)? ASSIGN expr SEMI ;
+
 defaultValStmt: DEFAULT_VAL_KW COLON NUMBER SEMI ;
+
 exprStmt      : expr SEMI ;
 
-// MANDATORY BRACES: Eliminates Dangling Else ambiguity entirely.
 ifStmt
     : IF_KW LPAREN condition RPAREN LBRACE statement* RBRACE 
       (ELSE_KW LBRACE statement* RBRACE)?
@@ -197,19 +202,22 @@ comparison     : expr compOp expr ;
 compOp         : GT | LT | GTE | LTE | EQ | NEQ ;
 
 // ── Expressions (Arithmetic with Strict Precedence) ───────────────
+// ── Expressions (Arithmetic with Strict Precedence) ───────────────
 expr
     : expr op=(MUL | DIV | MOD) expr     # MulDivExpr
     | expr op=(PLUS | MINUS) expr        # AddSubExpr
     | MINUS expr                         # UnaryMinusExpr
     | LPAREN expr RPAREN                 # ParenExpr
     | aggregateExpr                      # AggExpr
-    | EXEC_KW PROC_KW ID LPAREN argList? RPAREN # ProcCallExpr
+    | ID LPAREN argList? RPAREN          # ProcCallExpr
     | NUMBER                             # NumLit
     | STRING_LIT                         # StrLit
     | ID (LBRACKET expr RBRACKET)?       # VarOrArrayExpr
+    | SAH                                # BoolTrueExpr    // ✅ NEW
+    | KHTA                               # BoolFalseExpr   // ✅ NEW
     ;
 
-aggregateExpr : aggFunc LPAREN ID DURING_KW COLON duration RPAREN ;
+aggregateExpr : aggFunc LPAREN ID LMDA COLON duration RPAREN ;
 aggFunc       : AVG_KW | MAX_KW | MIN_KW | SUM_KW | RATE_KW | LAST_KW ;
 argList       : expr (COMMA expr)* ;
 
@@ -222,48 +230,61 @@ healthRule
 
 // ── Escalation Chains (ISA-18.2) ──────────────────────────────────
 escalationDef
-    : ESCALATION_KW ID LBRACE escalationLevel+ RBRACE
+    : ESCALATION_KW ID LBRACE escalationLevel (COMMA escalationLevel)* COMMA? RBRACE SEMI
     ;
 escalationLevel
-    : (LEVEL_1 | LEVEL_2 | LEVEL_3 | LEVEL_N) LBRACE escalationField* RBRACE
+    : (LEVEL_1 | LEVEL_2 | LEVEL_3 | LEVEL_N) LBRACE (escalationField (COMMA escalationField)* COMMA?)? RBRACE
     ;
 escalationField
-    : MESSAGE_KW    COLON STRING_LIT SEMI
-    | RECEIVER_KW   COLON STRING_LIT SEMI
-    | TIMEOUT_KW    COLON duration SEMI
-    | IF_NO_RESP_KW COLON escalationAction
+    : MESSAGE_KW    COLON STRING_LIT
+    | RECEIVER_KW   COLON STRING_LIT
+    | TIMEOUT_KW    COLON duration
+    | ON_TIMEOUT_KW COLON escalationAction
     ;
 escalationAction
-    : GOTO_KW (LEVEL_1 | LEVEL_2 | LEVEL_3 | LEVEL_N) SEMI
-    | EXEC_PROC_KW ID LPAREN argList? RPAREN SEMI
+    : GOTO_KW (LEVEL_1 | LEVEL_2 | LEVEL_3 | LEVEL_N)
+    | ID LPAREN argList? RPAREN
     ;
 
 // ── Native Reports ────────────────────────────────────────────────
 reportDef
-    : REPORT_KW ID LBRACE reportField* reportContent RBRACE
+    : REPORT_KW ID LBRACE (reportField (COMMA reportField)* COMMA?)? reportContent RBRACE SEMI
     ;
 reportField
-    : SCHEDULE_KW COLON scheduleSpec SEMI
-    | FORMAT_KW   COLON formatName SEMI
-    | SAVE_IN_KW  COLON STRING_LIT SEMI
-    | TYPE_KW     COLON IMMEDIATE_KW SEMI
+    : SCHEDULE_KW COLON scheduleSpec
+    | FORMAT_KW   COLON formatName
+    | SAVE_IN_KW  COLON STRING_LIT
+    | TYPE_KW     COLON IMMEDIATE_KW
     ;
+
+// ✅ ENTERPRISE SCADA STANDARD SCHEDULING
 scheduleSpec
-    : DAILY_KW  AT_TIME_KW STRING_LIT
-    | WEEKLY_KW DAY_KW STRING_LIT AT_TIME_KW STRING_LIT // DAY_KW resolved by context
+    : EVERY_KW duration                                                # IntervalSchedule
+    | DAILY_KW  AT_TIME_KW STRING_LIT                                  # DailySchedule
+    | WEEKLY_KW DAY_KW STRING_LIT AT_TIME_KW STRING_LIT                # WeeklySchedule
+    | MONTHLY_KW (DAY_KW NUMBER | LAST_DAY_KW) AT_TIME_KW STRING_LIT   # MonthlySchedule
     ;
+
 formatName : JSON_FMT | CSV_FMT ;
 
 reportContent
-    : CONTENT_KW LBRACE reportItem* RBRACE
+    : CONTENT_KW LBRACE (reportItem (COMMA reportItem)* COMMA?)? RBRACE
     ;
+
+// ✅ PREDICTIVE MAINTENANCE & HEALTH REPORTING
 reportItem
-    : aggFunc LPAREN ID DURING_KW COLON duration RPAREN AS_TITLE_KW STRING_LIT SEMI
-    | INSTANT_VAL_KW LPAREN ID RPAREN AS_TITLE_KW STRING_LIT SEMI
-    | ALERT_COUNT_KW DURING_KW COLON duration AS_TITLE_KW STRING_LIT SEMI
-    | UPTIME_KW DURING_KW COLON duration AS_TITLE_KW STRING_LIT SEMI
-    | CURRENT_MODE_KW AS_TITLE_KW STRING_LIT SEMI
-    | TIMESTAMP_KW AS_TITLE_KW STRING_LIT SEMI
+    : aggFunc LPAREN ID LMDA COLON duration RPAREN AS_TITLE_KW STRING_LIT
+    | INSTANT_VAL_KW LPAREN ID RPAREN AS_TITLE_KW STRING_LIT
+    | ALERT_COUNT_KW LMDA COLON duration AS_TITLE_KW STRING_LIT
+    | UPTIME_KW LMDA COLON duration AS_TITLE_KW STRING_LIT
+    | CURRENT_MODE_KW AS_TITLE_KW STRING_LIT
+    | TIMESTAMP_KW AS_TITLE_KW STRING_LIT
+    // ✅ NEW: Actuator Cycles (Predictive Maintenance)
+    | CYCLE_COUNT_KW LPAREN ID RPAREN AS_TITLE_KW STRING_LIT
+    // ✅ NEW: Actuator State (Current ON/OFF status)
+    | ACTUATOR_STATE_KW LPAREN ID RPAREN AS_TITLE_KW STRING_LIT
+    // ✅ NEW: Sensor Health (OK/FAULT status)
+    | SENSOR_HEALTH_KW LPAREN ID RPAREN AS_TITLE_KW STRING_LIT
     ;
 
 // ── Transition Table ──────────────────────────────────────────────
@@ -274,22 +295,33 @@ transitionRule : FROM_KW modeName TO_KW modeName SEMI ;
 
 // ── Duration & Units ──────────────────────────────────────────────
 duration   : NUMBER timeSuffix ;
-timeSuffix : SECOND_KW | MINUTE_KW | HOUR_KW | DAY_KW | MILLI_SEC_KW ;
+// ✅ EXPANDED: Added WEEK_KW and MONTH_KW for interval durations
+timeSuffix : SECOND_KW | MINUTE_KW | HOUR_KW | DAY_KW | WEEK_KW | MONTH_KW | MILLI_SEC_KW ;
 
+// ✅ THE CORE UNIT SYSTEM: Categorized for the Semantic Analyzer
 unitType
-    : CELSIUS_U | BAR_U | PASCAL_U | VOLT_U | AMPERE_U
-    | RPM_U | LPM_U | PERCENT_U | METER_U | NTU_U | NO_UNIT_U
+    // 1. Fundamental Physical Base Atoms
+    : METER_U | LITER_U | CUBIC_METER_U | KG_U | GRAM_U | TON_U
+    | SECOND_KW | MINUTE_KW | HOUR_KW | DAY_KW | MILLI_SEC_KW
+    | CELSIUS_U | DEGREE_U | RADIAN_U
+    | BAR_U | PASCAL_U
+    | VOLT_U | AMPERE_U | OHM_U | WATT_U | KWATT_U | JOULE_U
+    | HERTZ_U | CYCLE_U | COUNT_U
+    | LUX_U | SIEMENS_U | NTU_U | PPM_U
+    | BIT_U | BYTE_U
+    | PERCENT_U | NO_UNIT_U
+    
+    // 2. "Famous Mixes" (Pre-defined composite units for SCADA/PLC convenience)
+    | RPM_U | RPS_U | LPM_U | LPH_U | CMH_U | MPS_U | MPM_U 
     | BAR_S_U | CELSIUS_S_U
-    | ID // Custom units
+    
+    // 3. User-defined custom units
+    | ID 
     ;
-
-// Flexible separator for block fields (accepts ;, ؛, ,, or ،)
-fieldSep : SEMI | COMMA ;
 
 
 // =====================================================================
 // LEXER RULES (Uppercase)
-// ORDER IS CRITICAL: Multi-char operators first, then keywords, then ID.
 // =====================================================================
 
 // ── Structure & Configuration ───────────────────────────────────────
@@ -316,10 +348,10 @@ PROC_KW         : 'اجراء' ;
 RETURNS_KW      : 'يرجع' ;
 RETURN_KW       : 'ارجع' ;
 
-// ── Types (Using the | operator for clean aliases) ──────────────────
+// ── Types ───────────────────────────────────────────────────────────
 BOOL_T          : 'منطقي' ;
-INT_T           : 'صحيح' | 'عدد_صحيح' ;       // ALIASES: One token, two valid strings
-FLOAT_T         : 'حقيقي' | 'عدد_حقيقي' ;     // ALIASES: One token, two valid strings
+INT_T           : 'صحيح' | 'عدد_صحيح' ;
+FLOAT_T         : 'حقيقي' | 'عدد_حقيقي' ;
 
 // ── Boolean Literals ────────────────────────────────────────────────
 SAH             : 'صح' ;
@@ -327,30 +359,27 @@ KHTA            : 'خطا' ;
 
 // ── Modes ───────────────────────────────────────────────────────────
 STARTUP_KW      : 'اقلاع' ;
-RUN_KW          : 'تشغيل' ;       // CONFLICT RESOLVED: Context (modeName vs actuatorValue)
+RUN_KW          : 'تشغيل' ;
 MAINTENANCE_KW  : 'صيانة' ;
 EMERGENCY_KW    : 'طوارئ' ;
 MODE_KW         : 'وضع' ;
 RULE_KW         : 'قاعدة' ;
-CONDITION_KW    : 'شرط' ;
-EXECUTE_KW      : 'تنفيذ' ;
 ON_START_KW     : 'عند_بدء' ;
 
 // ── Actions & Statements ────────────────────────────────────────────
 CMD_KW          : 'امر' ;
 ALERT_KW        : 'تنبيه' ;
-LEVEL_1         : 'مستوى_1' ;     // MUST be before LEVEL_N
+LEVEL_1         : 'مستوى_1' ;
 LEVEL_2         : 'مستوى_2' ;
 LEVEL_3         : 'مستوى_3' ;
 LEVEL_N         : 'مستوى_' [0-9]+ ;
-LOG_KW          : 'سجل_حادثة' ;
-EXEC_KW         : 'نفذ' ;
+LOG_KW          : 'سجل' ;
 GOTO_KW         : 'انتقل_الى' ;
 WAIT_KW         : 'انتظر' ;
 IF_KW           : 'اذا' ;
 ELSE_KW         : 'والا' ;
 WHILE_KW        : 'طالما' ;
-DEFAULT_VAL_KW  : 'استخدم_قيمة_افتراضية' ;
+DEFAULT_VAL_KW  : 'قيمة_افتراضية' ;
 
 // ── Actuator Values ─────────────────────────────────────────────────
 OFF_KW          : 'ايقاف' ;
@@ -375,7 +404,6 @@ MIN_KW          : 'ادنى' ;
 SUM_KW          : 'مجموع' ;
 RATE_KW         : 'معدل_التغيير' ;
 LAST_KW         : 'اخر' ;
-DURING_KW       : 'خلال' ;
 
 // ── Sensor Health ───────────────────────────────────────────────────
 HEALTH_KW       : 'صحة' ;
@@ -389,8 +417,7 @@ ESCALATION_KW   : 'تصعيد' ;
 MESSAGE_KW      : 'رسالة' ;
 RECEIVER_KW     : 'مستلم' ;
 TIMEOUT_KW      : 'مهلة' ;
-IF_NO_RESP_KW   : 'اذا_لم_يستجب_خلال_المهلة' ;
-EXEC_PROC_KW    : 'نفذ_اجراء' ;
+ON_TIMEOUT_KW   : 'عند_انتهاء_المهلة' ;
 TRANSITIONS_KW  : 'انتقالات' ;
 TO_KW           : 'الى' ;
 
@@ -402,29 +429,29 @@ SAVE_IN_KW      : 'حفظ_في' ;
 IMMEDIATE_KW    : 'فوري' ;
 DAILY_KW        : 'كل_يوم' ;
 WEEKLY_KW       : 'كل_اسبوع' ;
-DAY_KW          : 'يوم' ;          // CONFLICT RESOLVED: Context (timeSuffix vs scheduleSpec)
+DAY_KW          : 'يوم' ;
 AT_TIME_KW      : 'الساعة' ;
 CONTENT_KW      : 'محتوى' ;
 AS_TITLE_KW     : 'بعنوان' ;
 INSTANT_VAL_KW  : 'قيمة_لحظية' ;
-ALERT_COUNT_KW  : 'عدد_التنبيهات_خلال' ;
+ALERT_COUNT_KW  : 'عدد_التنبيهات' ;
 UPTIME_KW       : 'وقت_التشغيل_الفعلي' ;
 CURRENT_MODE_KW : 'الوضع_الحالي' ;
 TIMESTAMP_KW    : 'طابع_زمني' ;
 JSON_FMT        : 'json' ;
 CSV_FMT         : 'csv' ;
 
-// ── Base Dimensions ─────────────────────────────────────────────────
-MASS_KW         : 'كتلة' ;
-VOLUME_KW       : 'حجم' ;
-TIME_DIM_KW     : 'زمن' ;
-LENGTH_KW       : 'طول' ;
-TEMP_DIM_KW     : 'درجة_حرارة' ;
-CURRENT_DIM_KW  : 'تيار' ;
-VOLTAGE_DIM_KW  : 'جهد' ;
-PRESSURE_DIM_KW : 'ضغط' ;
-COUNT_DIM_KW    : 'عدد' ;
-ENERGY_KW       : 'طاقة' ;
+// ✅ NEW: Predictive Maintenance & Health Report Keywords
+CYCLE_COUNT_KW    : 'عدد_تشغيلات' ;
+ACTUATOR_STATE_KW : 'حالة_مشغل' ;
+SENSOR_HEALTH_KW  : 'حالة_صحة' ;
+
+// ✅ NEW: Scheduling Modifiers
+EVERY_KW        : 'كل' ;
+MONTHLY_KW      : 'كل_شهر' ;
+LAST_DAY_KW     : 'اخر_يوم' ;
+WEEK_KW         : 'اسبوع' ;
+MONTH_KW        : 'شهر' ;
 
 // ── Time Units ──────────────────────────────────────────────────────
 SECOND_KW       : 'ثانية' ;
@@ -432,26 +459,54 @@ MINUTE_KW       : 'دقيقة' ;
 HOUR_KW         : 'ساعة' ;
 MILLI_SEC_KW    : 'مللي_ثانية' ;
 
-// ── Physical Units ──────────────────────────────────────────────────
+// ── Physical Units (Base Atoms) ─────────────────────────────────────
 CELSIUS_U       : 'سيلزيوس' ;
 BAR_U           : 'بار' ;
 PASCAL_U        : 'باسكال' ;
 VOLT_U          : 'فولت' ;
 AMPERE_U        : 'امبير' ;
-RPM_U           : 'دورة_في_الدقيقة' ;
-LPM_U           : 'لتر_في_الدقيقة' ;
+OHM_U           : 'أوم' ;       // ✅ Crucial for RTD sensors
 PERCENT_U       : 'بالمئة' ;
 METER_U         : 'متر' ;
 NTU_U           : 'NTU' ;
 NO_UNIT_U       : 'لا_وحدة' ;
+LUX_U           : 'لوكس' ;      // ✅ Crucial for lighting
+DEGREE_U        : 'درجة' ;      // ✅ Crucial for valve positioning
+RADIAN_U        : 'راديان' ;
+SIEMENS_U       : 'سيمنز' ;     // ✅ Crucial for water conductivity
+PPM_U           : 'جزء_في_المليون' ; // ✅ Crucial for chlorine/ozone
+BIT_U           : 'بت' ;
+BYTE_U          : 'بايت' ;
+
+// ✅ Fully Decoupled Base Atoms
+LITER_U         : 'لتر' ;
+CUBIC_METER_U   : 'متر_مكعب' ;
+KG_U            : 'كيلوجرام' ;
+GRAM_U          : 'جرام' ;
+TON_U           : 'طن' ;
+WATT_U          : 'واط' ;
+KWATT_U         : 'كيلو_واط' ;
+JOULE_U         : 'جول' ;
+HERTZ_U         : 'هرتز' ;
+COUNT_U         : 'عدد' ;
+CYCLE_U         : 'دورة' ;
+
+// ✅ "Famous Mixes" (Longest match first for safety)
+LPH_U           : 'لتر_في_الساعة' ;
+CMH_U           : 'متر_مكعب_في_الساعة' ;
+MPS_U           : 'متر_في_الثانية' ;
+MPM_U           : 'متر_في_الدقيقة' ;
+RPM_U           : 'دورة_في_الدقيقة' ;
+RPS_U           : 'دورة_في_الثانية' ;
+LPM_U           : 'لتر_في_الدقيقة' ;
 BAR_S_U         : 'بار_في_الثانية' ;
 CELSIUS_S_U     : 'سيلزيوس_في_الثانية' ;
 
-// ── Operators (STRICT ORDER: Multi-char before Single-char) ─────────
-EQ              : '==' ;     // BEFORE ASSIGN
+// ── Operators ───────────────────────────────────────────────────────
+EQ              : '==' ;
 NEQ             : '!=' ;
-GTE             : '>=' ;     // BEFORE GT
-LTE             : '<=' ;     // BEFORE LT
+GTE             : '>=' ;
+LTE             : '<=' ;
 GT              : '>' ;
 LT              : '<' ;
 ASSIGN          : '=' ;
@@ -461,7 +516,7 @@ MUL             : '*' ;
 DIV             : '/' ;
 MOD             : '%' ;
 
-// ── Punctuation (FLEXIBILITY: Arabic and English interchangeable) ───
+// ── Punctuation ─────────────────────────────────────────────────────
 LPAREN          : '(' ;
 RPAREN          : ')' ;
 LBRACE          : '{' ;
@@ -469,8 +524,8 @@ RBRACE          : '}' ;
 LBRACKET        : '[' ;
 RBRACKET        : ']' ;
 COLON           : ':' ;
-SEMI            : '؛' | ';' ;      // Arabic OR English semicolon (Statement terminator)
-COMMA           : '،' | ',' ;      // Arabic OR English comma (List separator)
+SEMI            : '؛' | ';' ;
+COMMA           : '،' | ',' ;
 DOTDOT          : '..' ;
 
 // ── Literals & Identifiers ──────────────────────────────────────────
@@ -478,8 +533,6 @@ STRING_LIT      : '"' ~["\r\n]* '"' ;
 fragment DIGIT  : [0-9] | [\u0660-\u0669] ;
 NUMBER          : DIGIT+ ('.' DIGIT+)? ;
 REGISTER        : '0x' [0-9A-Fa-f]+ ;
-
-// ID MUST BE LAST. It catches anything not matched by the keywords above.
 ID              : [\u0621-\u064A_A-Za-z] [\u0621-\u064A_A-Za-z\u0660-\u06690-9]* ;
 
 // ── Whitespace & Comments ───────────────────────────────────────────

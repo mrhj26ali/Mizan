@@ -34,8 +34,14 @@ class DurationNode(ASTNode):
     value: float
     unit: str
     def accept(self, visitor): return visitor.visit_DurationNode(self)
+    
     def to_seconds(self) -> float:
-        factors = {'مللي_ثانية': 0.001, 'ثانية': 1.0, 'دقيقة': 60.0, 'ساعة': 3600.0, 'يوم': 86400.0}
+        # ✅ EXPANDED: Added Week and Month for enterprise scheduling
+        factors = {
+            'مللي_ثانية': 0.001, 'ثانية': 1.0, 'دقيقة': 60.0, 
+            'ساعة': 3600.0, 'يوم': 86400.0, 
+            'اسبوع': 604800.0, 'شهر': 2592000.0  # 30 days standard
+        }
         return self.value * factors.get(self.unit, 1.0)
 
 @dataclass
@@ -50,15 +56,23 @@ class DeviceBlockNode(ASTNode):
     fields: List[DeviceFieldNode]
     def accept(self, visitor): return visitor.visit_DeviceBlockNode(self)
 
+# ✅ NEW: Concrete Unit System Nodes (Replaced DimensionExprNode)
 @dataclass
-class DimensionExprNode(ASTNode):
-    elements: List[str]
-    def accept(self, visitor): return visitor.visit_DimensionExprNode(self)
+class UnitMathExprNode(ASTNode):
+    left: ASTNode
+    op: str  # '*' or '/'
+    right: ASTNode
+    def accept(self, visitor): return visitor.visit_UnitMathExprNode(self)
+
+@dataclass
+class UnitBaseNode(ASTNode):
+    unit_name: str
+    def accept(self, visitor): return visitor.visit_UnitBaseNode(self)
 
 @dataclass
 class CustomUnitDefNode(ASTNode):
     identifier: str
-    dimension: DimensionExprNode
+    unit_expr: ASTNode  # ✅ CHANGED: Was 'dimension: DimensionExprNode'
     def accept(self, visitor): return visitor.visit_CustomUnitDefNode(self)
 
 @dataclass
@@ -161,8 +175,7 @@ class ProcedureDefNode(ASTNode):
 class RuleBlockNode(ASTNode):
     identifier: str
     local_declarations: List[ASTNode]
-    condition: ASTNode
-    actions: List[ASTNode]
+    statements: List[ASTNode]  # ✅ CHANGED: Removed 'condition' and 'actions'. Rules are just blocks of statements now!
     def accept(self, visitor): return visitor.visit_RuleBlockNode(self)
 
 @dataclass
@@ -192,11 +205,7 @@ class LogStmtNode(ASTNode):
     message: str
     def accept(self, visitor): return visitor.visit_LogStmtNode(self)
 
-@dataclass
-class ExecProcStmtNode(ASTNode):
-    identifier: str
-    arguments: List[ASTNode]
-    def accept(self, visitor): return visitor.visit_ExecProcStmtNode(self)
+# 🗑️ DELETED: ExecProcStmtNode (Procedure calls are now native expressions!)
 
 @dataclass
 class GotoStmtNode(ASTNode):
@@ -222,7 +231,7 @@ class DefaultValStmtNode(ASTNode):
 
 @dataclass
 class ExprStmtNode(ASTNode):
-    expr: ASTNode
+    expr: ASTNode  # ✅ This now wraps ProcCallExprNode for standalone procedure calls
     def accept(self, visitor): return visitor.visit_ExprStmtNode(self)
 
 @dataclass
@@ -337,8 +346,8 @@ class VariableExprNode(ASTNode):
 
 @dataclass
 class EscalationFieldNode(ASTNode):
-    key: str
-    value: Union[str, DurationNode, ASTNode]
+    key: str  # 'MESSAGE', 'RECEIVER', 'TIMEOUT', 'ON_TIMEOUT' (Changed from IF_NO_RESP)
+    value: Union[str, DurationNode, ASTNode] # ASTNode can be GotoStmtNode or ProcCallExprNode
     def accept(self, visitor): return visitor.visit_EscalationFieldNode(self)
 
 @dataclass
@@ -358,9 +367,11 @@ class EscalationDefNode(ASTNode):
 
 @dataclass
 class ScheduleSpecNode(ASTNode):
-    frequency: str
-    day: Optional[str]
-    time: str
+    frequency: str  # 'INTERVAL', 'DAILY', 'WEEKLY', 'MONTHLY'
+    interval_ms: Optional[int] = None
+    target_day: Optional[int] = None  # 0-6 for weekly, 1-31 for monthly
+    time_str: Optional[str] = None    # "HH:MM"
+    is_last_day: bool = False         # ✅ NEW: For "اخر_يوم" (End-of-month clamping)
     def accept(self, visitor): return visitor.visit_ScheduleSpecNode(self)
 
 @dataclass
@@ -371,7 +382,8 @@ class ReportFieldNode(ASTNode):
 
 @dataclass
 class ReportItemNode(ASTNode):
-    kind: str
+    # ✅ EXPANDED: Added 'CYCLE_COUNT', 'ACTUATOR_STATE', 'SENSOR_HEALTH' to kinds
+    kind: str  
     title: str
     identifier: Optional[str]
     duration: Optional[DurationNode]

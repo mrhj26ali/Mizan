@@ -12,6 +12,8 @@ declare void @"mizan_alert"(i32 %".1", i8* %".2")
 
 declare void @"panic_div_zero"()
 
+declare void @"panic_array_bounds"(i32 %".1", i32 %".2")
+
 declare i8* @"mizan_modbus_connect"(i8* %".1", i32 %".2")
 
 declare double @"mizan_modbus_read"(i8* %".1", i32 %".2")
@@ -44,9 +46,11 @@ declare double @"mizan_ring_rate"(i32 %".1", i64 %".2")
 
 declare double @"mizan_ring_last"(i32 %".1")
 
-declare i64 @"mizan_health_track_stuck"(i32 %".1", double %".2", i64 %".3")
+declare i32 @"mizan_health_track_disconnect"(i32 %".1", i32 %".2")
 
-declare i32 @"mizan_health_out_of_range"(double %".1", double %".2", double %".3")
+declare i32 @"mizan_health_track_stuck"(i32 %".1", double %".2", i64 %".3")
+
+declare i32 @"mizan_health_out_of_range"(i32 %".1", double %".2", double %".3", double %".4")
 
 declare void @"mizan_escalation_tick"()
 
@@ -54,14 +58,24 @@ declare void @"mizan_escalation_arm"(i32 %".1", i32 %".2", i64 %".3", i8* %".4",
 
 declare void @"mizan_report_write"(i8* %".1", i8* %".2", i8* %".3", i8* %".4")
 
+declare void @"mizan_actuator_cmd"(i32 %".1", double %".2")
+
+declare i32 @"mizan_actuator_cycles"(i32 %".1")
+
+declare i32 @"mizan_actuator_state"(i32 %".1")
+
+declare i32 @"mizan_sensor_health"(i32 %".1")
+
+declare i32 @"mizan_schedule_check"(i32 %".1", i32 %".2", i32 %".3", i32 %".4", i32 %".5", i32 %".6")
+
 declare i32 @"printf"(i8* %".1", ...)
 
 declare i32 @"snprintf"(i8* %".1", i64 %".2", i8* %".3", ...)
 
-@"g_المسافة" = internal global double 0.0
-@"g_الزمن" = internal global double 0.0
-@"g_السرعة" = internal global double 0.0
-@"g_عداد" = internal global i32 0
+@"s_الضغط" = internal global double 0.0
+@"s_الضغط_conn" = internal global i32 1
+@"a_مضخة_الحقن" = internal global double 0.0
+@"g_حالة_الحقن" = internal global i32 0
 @"__modbus_ctx" = internal global i8* null
 @"__mqtt_ctx" = internal global i8* null
 @"__current_mode" = internal global i32 0
@@ -70,84 +84,47 @@ declare i32 @"snprintf"(i8* %".1", i64 %".2", i8* %".3", ...)
 @"__wq_values" = internal global [64 x double] [double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0, double              0x0]
 @"__wq_count" = internal global i32 0
 @"__rpt_buf" = internal global [2048 x i8] c"\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
-define double @"proc_حساب_السرعة"(double %"المسافة", double %"الزمن")
-{
-entry:
-  %"المسافة_slot" = alloca double
-  store double %"المسافة", double* %"المسافة_slot"
-  %"الزمن_slot" = alloca double
-  store double %"الزمن", double* %"الزمن_slot"
-  %"الزمن.1" = load double, double* %"الزمن_slot"
-  %"fcmp" = fcmp ole double %"الزمن.1",              0x0
-  br i1 %"fcmp", label %"if_then", label %"if_else"
-if_then:
-  %".7" = bitcast [61 x i8]* @"__log_1" to i8*
-  call void @"mizan_log"(i8* %".7")
-  ret double              0x0
-if_else:
-  br label %"if_end"
-if_end:
-  %"المسافة.1" = load double, double* %"المسافة_slot"
-  %"الزمن.2" = load double, double* %"الزمن_slot"
-  %"fdiv" = fdiv double %"المسافة.1", %"الزمن.2"
-  ret double %"fdiv"
-}
-
-@"__log_1" = private constant [61 x i8] c"\d8\ae\d8\b7\d8\a7: \d8\a7\d9\84\d8\b2\d9\85\d9\86 \d9\8a\d8\ac\d8\a8 \d8\a7\d9\86 \d9\8a\d9\83\d9\88\d9\86 \d8\a7\d9\83\d8\a8\d8\b1 \d9\85\d9\86 \d8\b5\d9\81\d8\b1\00"
 define i32 @"main"()
 {
 entry:
   call void @"setup_arabic_console"()
-  %".3" = bitcast [10 x i8]* @"__dev_ip_2" to i8*
+  %".3" = bitcast [10 x i8]* @"__dev_ip_1" to i8*
   %".4" = call i8* @"mizan_modbus_connect"(i8* %".3", i32 5020)
   store i8* %".4", i8** @"__modbus_ctx"
-  %".6" = bitcast [10 x i8]* @"__mq_host_3" to i8*
-  %".7" = bitcast [14 x i8]* @"__mq_cid_4" to i8*
+  %".6" = bitcast [10 x i8]* @"__mq_host_2" to i8*
+  %".7" = bitcast [14 x i8]* @"__mq_cid_3" to i8*
   %".8" = call i8* @"mizan_mqtt_connect"(i8* %".6", i32 1884, i8* %".7")
   store i8* %".8", i8** @"__mqtt_ctx"
   call void @"__mizan_set_mqtt_ctx"(i8* %".8")
-  store double 0x4059000000000000, double* @"g_المسافة"
-  store double 0x4014000000000000, double* @"g_الزمن"
-  store double              0x0, double* @"g_السرعة"
-  store i32 0, i32* @"g_عداد"
+  store i32 0, i32* @"g_حالة_الحقن"
   store i32 0, i32* @"__current_mode"
-  %".16" = bitcast [35 x i8]* @"__log_5" to i8*
-  call void @"mizan_log"(i8* %".16")
-  %"المسافة" = load double, double* @"g_المسافة"
-  %"الزمن" = load double, double* @"g_الزمن"
-  %"pcall" = call double @"proc_حساب_السرعة"(double %"المسافة", double %"الزمن")
-  store double %"pcall", double* @"g_السرعة"
-  %"السرعة" = load double, double* @"g_السرعة"
-  %"fcmp" = fcmp ogt double %"السرعة", 0x402e000000000000
-  br i1 %"fcmp", label %"if_then", label %"if_else"
-if_then:
-  %".20" = bitcast [50 x i8]* @"__alert_6" to i8*
-  call void @"mizan_alert"(i32 1, i8* %".20")
-  br label %"if_end"
-if_else:
-  %".23" = bitcast [52 x i8]* @"__alert_7" to i8*
-  call void @"mizan_alert"(i32 1, i8* %".23")
-  br label %"if_end"
-if_end:
-  br label %"while_cond"
-while_cond:
-  %"عداد" = load i32, i32* @"g_عداد"
-  %"icmp" = icmp slt i32 %"عداد", 2
-  br i1 %"icmp", label %"while_body", label %"while_end"
-while_body:
-  %".28" = bitcast [22 x i8]* @"__log_8" to i8*
-  call void @"mizan_log"(i8* %".28")
-  %"عداد.1" = load i32, i32* @"g_عداد"
-  %"add" = add i32 %"عداد.1", 1
-  store i32 %"add", i32* @"g_عداد"
-  br label %"while_cond"
-while_end:
+  %".13" = bitcast [36 x i8]* @"__log_4" to i8*
+  call void @"mizan_log"(i8* %".13")
+  store i32 1, i32* @"__pending_goto"
   br label %"scan_cycle"
 scan_cycle:
   %"cycle_start" = call i64 @"mizan_now_ms"()
   %"mb" = load i8*, i8** @"__modbus_ctx"
+  %"global_conn" = call i32 @"mizan_modbus_is_connected"(i8* %"mb")
+  %".17" = icmp eq i32 %"global_conn", 0
+  br i1 %".17", label %"safe_state_flush", label %"scan_sensors"
+safe_state_flush:
+  store i32 0, i32* @"__wq_count"
+  store double              0x0, double* @"a_مضخة_الحقن"
+  br label %"scan_sensors"
+scan_sensors:
+  %"raw_الضغط" = call double @"mizan_modbus_read"(i8* %"mb", i32 2)
+  store double %"raw_الضغط", double* @"s_الضغط"
+  %"conn_الضغط" = call i32 @"mizan_modbus_is_connected"(i8* %"mb")
+  store i32 %"conn_الضغط", i32* @"s_الضغط_conn"
+  %".24" = icmp ne i32 %"conn_الضغط", 0
+  br i1 %".24", label %"scan_sensors.if", label %"scan_sensors.endif"
+scan_sensors.if:
+  call void @"mizan_ring_push"(i32 0, double %"raw_الضغط")
+  br label %"scan_sensors.endif"
+scan_sensors.endif:
   %"cur_mode" = load i32, i32* @"__current_mode"
-  switch i32 %"cur_mode", label %"mode_default" [i32 0, label %"mode_m7794"]
+  switch i32 %"cur_mode", label %"mode_default" [i32 0, label %"mode_m86043" i32 1, label %"mode_m36121"]
 mode_default:
   br label %"mode_end"
 mode_end:
@@ -156,49 +133,120 @@ mode_end:
   %"fi" = alloca i32
   store i32 0, i32* %"fi"
   br label %"flush_cond"
-mode_m7794:
+mode_m86043:
   br label %"mode_end"
+mode_m36121:
+  %"الضغط" = load double, double* @"s_الضغط"
+  %"fcmp" = fcmp ogt double %"الضغط", 0x4020000000000000
+  br i1 %"fcmp", label %"if_then", label %"if_else"
+if_then:
+  store double 0x3ff0000000000000, double* @"a_مضخة_الحقن"
+  call void @"mizan_actuator_cmd"(i32 0, double 0x3ff0000000000000)
+  %"wqc" = load i32, i32* @"__wq_count"
+  %".33" = icmp slt i32 %"wqc", 64
+  br i1 %".33", label %"if_then.if", label %"if_then.endif"
+if_else:
+  store double              0x0, double* @"a_مضخة_الحقن"
+  call void @"mizan_actuator_cmd"(i32 0, double              0x0)
+  %"wqc.1" = load i32, i32* @"__wq_count"
+  %".48" = icmp slt i32 %"wqc.1", 64
+  br i1 %".48", label %"if_else.if", label %"if_else.endif"
+if_end:
+  br label %"mode_end"
+if_then.if:
+  %".35" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %"wqc"
+  %".36" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %"wqc"
+  store i32 36, i32* %".35"
+  store double 0x3ff0000000000000, double* %".36"
+  %".39" = add i32 %"wqc", 1
+  store i32 %".39", i32* @"__wq_count"
+  br label %"if_then.endif"
+if_then.endif:
+  %".42" = bitcast [56 x i8]* @"__alert_5" to i8*
+  call void @"mizan_alert"(i32 1, i8* %".42")
+  store i32 1, i32* @"g_حالة_الحقن"
+  br label %"if_end"
+if_else.if:
+  %".50" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %"wqc.1"
+  %".51" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %"wqc.1"
+  store i32 36, i32* %".50"
+  store double              0x0, double* %".51"
+  %".54" = add i32 %"wqc.1", 1
+  store i32 %".54", i32* @"__wq_count"
+  br label %"if_else.endif"
+if_else.endif:
+  store i32 0, i32* @"g_حالة_الحقن"
+  br label %"if_end"
 flush_cond:
-  %".38" = load i32, i32* %"fi"
-  %".39" = icmp slt i32 %".38", %"flush_n"
-  br i1 %".39", label %"flush_body", label %"flush_end"
+  %".63" = load i32, i32* %"fi"
+  %".64" = icmp slt i32 %".63", %"flush_n"
+  br i1 %".64", label %"flush_body", label %"flush_end"
 flush_body:
-  %".41" = load i32, i32* %"fi"
-  %".42" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %".41"
-  %".43" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %".41"
-  %".44" = load i32, i32* %".42"
-  %".45" = load double, double* %".43"
-  call void @"mizan_modbus_write"(i8* %"mb_out", i32 %".44", double %".45")
-  %".47" = add i32 %".41", 1
-  store i32 %".47", i32* %"fi"
+  %".66" = load i32, i32* %"fi"
+  %".67" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %".66"
+  %".68" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %".66"
+  %".69" = load i32, i32* %".67"
+  %".70" = load double, double* %".68"
+  call void @"mizan_modbus_write"(i8* %"mb_out", i32 %".69", double %".70")
+  %".72" = add i32 %".66", 1
+  store i32 %".72", i32* %"fi"
   br label %"flush_cond"
 flush_end:
   store i32 0, i32* @"__wq_count"
   call void @"mizan_escalation_tick"()
-  %"pending" = load i32, i32* @"__pending_goto"
-  %".52" = icmp ne i32 %"pending", -1
-  br i1 %".52", label %"flush_end.if", label %"flush_end.endif"
+  %"rpt_now" = call i64 @"mizan_now_ms"()
+  %"next_fire" = load i64, i64* @"__rpt_timer_0"
+  %".77" = icmp eq i64 %"next_fire", -1
+  br i1 %".77", label %"flush_end.if", label %"flush_end.endif"
 flush_end.if:
-  store i32 %"pending", i32* @"__current_mode"
-  store i32 -1, i32* @"__pending_goto"
+  %".79" = add i64 %"rpt_now", 5000
+  store i64 %".79", i64* @"__rpt_timer_0"
   br label %"flush_end.endif"
 flush_end.endif:
-  %"now" = call i64 @"mizan_now_ms"()
-  %"elapsed" = sub i64 %"now", %"cycle_start"
-  %"remain" = sub i64 1000, %"elapsed"
-  %".57" = icmp sgt i64 %"remain", 0
-  br i1 %".57", label %"flush_end.endif.if", label %"flush_end.endif.endif"
+  %".82" = icmp sge i64 %"rpt_now", %"next_fire"
+  br i1 %".82", label %"flush_end.endif.if", label %"flush_end.endif.endif"
 flush_end.endif.if:
-  call void @"mizan_sleep_ms"(i64 %"remain")
+  %".84" = bitcast [2048 x i8]* @"__rpt_buf" to i8*
+  %".85" = call i32 @"mizan_actuator_cycles"(i32 0)
+  %".86" = call i32 @"mizan_actuator_state"(i32 0)
+  %".87" = call i32 @"mizan_sensor_health"(i32 0)
+  %".88" = bitcast [87 x i8]* @"__rpt_fmt_6" to i8*
+  %".89" = call i32 (i8*, i64, i8*, ...) @"snprintf"(i8* %".84", i64 2048, i8* %".88", i32 %".85", i32 %".86", i32 %".87")
+  %".90" = bitcast [26 x i8]* @"__rpt_id_7" to i8*
+  %".91" = bitcast [5 x i8]* @"__rpt_fmtarg_8" to i8*
+  %".92" = bitcast [14 x i8]* @"__rpt_dir_9" to i8*
+  call void @"mizan_report_write"(i8* %".90", i8* %".91", i8* %".92", i8* %".84")
+  %".94" = add i64 %"rpt_now", 5000
+  store i64 %".94", i64* @"__rpt_timer_0"
   br label %"flush_end.endif.endif"
 flush_end.endif.endif:
+  %"pending" = load i32, i32* @"__pending_goto"
+  %".97" = icmp ne i32 %"pending", -1
+  br i1 %".97", label %"flush_end.endif.endif.if", label %"flush_end.endif.endif.endif"
+flush_end.endif.endif.if:
+  store i32 %"pending", i32* @"__current_mode"
+  store i32 -1, i32* @"__pending_goto"
+  br label %"flush_end.endif.endif.endif"
+flush_end.endif.endif.endif:
+  %"now" = call i64 @"mizan_now_ms"()
+  %"elapsed" = sub i64 %"now", %"cycle_start"
+  %"remain" = sub i64 500, %"elapsed"
+  %".102" = icmp sgt i64 %"remain", 0
+  br i1 %".102", label %"flush_end.endif.endif.endif.if", label %"flush_end.endif.endif.endif.endif"
+flush_end.endif.endif.endif.if:
+  call void @"mizan_sleep_ms"(i64 %"remain")
+  br label %"flush_end.endif.endif.endif.endif"
+flush_end.endif.endif.endif.endif:
   br label %"scan_cycle"
 }
 
-@"__dev_ip_2" = private constant [10 x i8] c"127.0.0.1\00"
-@"__mq_host_3" = private constant [10 x i8] c"127.0.0.1\00"
-@"__mq_cid_4" = private constant [14 x i8] c"mizan-runtime\00"
-@"__log_5" = private constant [35 x i8] c"\d8\a8\d8\af\d8\a1 \d8\a7\d8\ae\d8\aa\d8\a8\d8\a7\d8\b1 \d8\a7\d9\84\d9\88\d8\ad\d8\af\d8\a7\d8\aa\00"
-@"__alert_6" = private constant [50 x i8] c"[\d8\aa\d9\86\d8\a8\d9\8a\d9\87 \d9\85\d8\b3\d8\aa\d9\88\d9\89_1] \d8\a7\d9\84\d8\b3\d8\b1\d8\b9\d8\a9 \d8\b9\d8\a7\d9\84\d9\8a\d8\a9\00"
-@"__alert_7" = private constant [52 x i8] c"[\d8\aa\d9\86\d8\a8\d9\8a\d9\87 \d9\85\d8\b3\d8\aa\d9\88\d9\89_1] \d8\a7\d9\84\d8\b3\d8\b1\d8\b9\d8\a9 \d8\b7\d8\a8\d9\8a\d8\b9\d9\8a\d8\a9\00"
-@"__log_8" = private constant [22 x i8] c"\d8\af\d9\88\d8\b1\d8\a9 \d8\ad\d8\b3\d8\a7\d8\a8\d9\8a\d8\a9\00"
+@"__dev_ip_1" = private constant [10 x i8] c"127.0.0.1\00"
+@"__mq_host_2" = private constant [10 x i8] c"127.0.0.1\00"
+@"__mq_cid_3" = private constant [14 x i8] c"mizan-runtime\00"
+@"__log_4" = private constant [36 x i8] c"\d8\a8\d8\af\d8\a1 \d9\86\d8\b8\d8\a7\d9\85 \d8\a7\d9\84\d8\aa\d9\82\d8\a7\d8\b1\d9\8a\d8\b1...\00"
+@"__alert_5" = private constant [56 x i8] c"[\d8\aa\d9\86\d8\a8\d9\8a\d9\87 \d9\85\d8\b3\d8\aa\d9\88\d9\89_1] \d8\a7\d9\84\d8\b6\d8\ba\d8\b7 \d9\85\d8\b1\d8\aa\d9\81\d8\b9 \d8\ac\d8\af\d8\a7!\00"
+@"__rpt_timer_0" = internal global i64 -1
+@"__rpt_fmt_6" = private constant [87 x i8] c"{\22\d8\af\d9\88\d8\b1\d8\a7\d8\aa_\d8\a7\d9\84\d9\85\d8\b6\d8\ae\d8\a9\22:%d,\22\d8\ad\d8\a7\d9\84\d8\a9_\d8\a7\d9\84\d9\85\d8\b6\d8\ae\d8\a9\22:%d,\22\d8\b3\d9\84\d8\a7\d9\85\d8\a9_\d8\a7\d9\84\d8\ad\d8\b3\d8\a7\d8\b3\22:%d}\00"
+@"__rpt_id_7" = private constant [26 x i8] c"\d8\aa\d9\82\d8\b1\d9\8a\d8\b1_\d8\a7\d9\84\d8\b5\d9\8a\d8\a7\d9\86\d8\a9\00"
+@"__rpt_fmtarg_8" = private constant [5 x i8] c"json\00"
+@"__rpt_dir_9" = private constant [14 x i8] c"./reports/cbm\00"

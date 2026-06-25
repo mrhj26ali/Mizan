@@ -2,7 +2,6 @@ from Frontend.MizanVisitor import MizanVisitor
 from Frontend.MizanParser import MizanParser
 from Ast.nodes import *
 
-
 class ASTBuilder(MizanVisitor):
     """Builds Mizan's clean AST from the ANTLR concrete parse tree."""
 
@@ -54,16 +53,32 @@ class ASTBuilder(MizanVisitor):
         return CustomUnitsBlockNode(line=ctx.start.line, column=ctx.start.column, units=units)
 
     def visitCustomUnitDef(self, ctx: MizanParser.CustomUnitDefContext):
+        # ✅ CHANGED: Now uses unitExpr instead of dimensionExpr
         return CustomUnitDefNode(line=ctx.start.line, column=ctx.start.column,
-                                  identifier=ctx.ID().getText(), dimension=self.visit(ctx.dimensionExpr()))
+                                  identifier=ctx.ID().getText(), unit_expr=self.visit(ctx.unitExpr()))
 
-    def visitDimensionExpr(self, ctx: MizanParser.DimensionExprContext):
-        elements = [child.getText() for child in ctx.children]
-        return DimensionExprNode(line=ctx.start.line, column=ctx.start.column, elements=elements)
+    # ✅ NEW: Concrete Unit System Visitors
+    def visitUnitMathExpr(self, ctx: MizanParser.UnitMathExprContext):
+        return UnitMathExprNode(line=ctx.start.line, column=ctx.start.column,
+                                left=self.visit(ctx.unitExpr()), op=ctx.op.text, right=self.visit(ctx.unitTerm()))
+
+    def visitUnitPass(self, ctx: MizanParser.UnitPassContext):
+        return self.visit(ctx.unitTerm())
+
+    def visitUnitBase(self, ctx: MizanParser.UnitBaseContext):
+        return UnitBaseNode(line=ctx.start.line, column=ctx.start.column, unit_name=ctx.unitType().getText())
+
+    def visitUnitParen(self, ctx: MizanParser.UnitParenContext):
+        return self.visit(ctx.unitExpr())
 
     def visitCustomModesBlock(self, ctx: MizanParser.CustomModesBlockContext):
         modes = [m.getText() for m in ctx.ID()]
         return CustomModesBlockNode(line=ctx.start.line, column=ctx.start.column, modes=modes)
+    def visitBoolTrueExpr(self, ctx: MizanParser.BoolTrueExprContext):
+        return BooleanLiteralNode(line=ctx.start.line, column=ctx.start.column, value=True)
+
+    def visitBoolFalseExpr(self, ctx: MizanParser.BoolFalseExprContext):
+        return BooleanLiteralNode(line=ctx.start.line, column=ctx.start.column, value=False)
 
     # ── Hardware declarations ───────────────────────────────────────
     def visitSensorDecl(self, ctx: MizanParser.SensorDeclContext):
@@ -127,19 +142,13 @@ class ASTBuilder(MizanVisitor):
     def visitOnStartBlock(self, ctx: MizanParser.OnStartBlockContext):
         return [self.visit(s) for s in ctx.statement()]
 
+    # ✅ CHANGED: RuleBlock is now just statements!
     def visitRuleBlock(self, ctx: MizanParser.RuleBlockContext):
         locals_ = [self.visit(d) for d in ctx.localDecl()] if ctx.localDecl() else []
-        condition = self.visit(ctx.conditionClause())
-        actions = self.visit(ctx.actionClause())
+        stmts = [self.visit(s) for s in ctx.statement()] if ctx.statement() else []
         return RuleBlockNode(line=ctx.start.line, column=ctx.start.column,
                               identifier=ctx.ID().getText(), local_declarations=locals_,
-                              condition=condition, actions=actions)
-
-    def visitConditionClause(self, ctx: MizanParser.ConditionClauseContext):
-        return self.visit(ctx.condition())
-
-    def visitActionClause(self, ctx: MizanParser.ActionClauseContext):
-        return [self.visit(s) for s in ctx.statement()]
+                              statements=stmts)
 
     # ── Variables & types ───────────────────────────────────────────
     def visitVarDecl(self, ctx: MizanParser.VarDeclContext):
@@ -199,10 +208,7 @@ class ASTBuilder(MizanVisitor):
         return LogStmtNode(line=ctx.start.line, column=ctx.start.column,
                             message=ctx.STRING_LIT().getText().strip('"'))
 
-    def visitExecProcStmt(self, ctx: MizanParser.ExecProcStmtContext):
-        args = [self.visit(a) for a in ctx.argList().expr()] if ctx.argList() else []
-        return ExecProcStmtNode(line=ctx.start.line, column=ctx.start.column,
-                                 identifier=ctx.ID().getText(), arguments=args)
+    # 🗑️ DELETED: visitExecProcStmt (Procedure calls are now native expressions!)
 
     def visitGotoStmt(self, ctx: MizanParser.GotoStmtContext):
         return GotoStmtNode(line=ctx.start.line, column=ctx.start.column,
@@ -225,10 +231,6 @@ class ASTBuilder(MizanVisitor):
         return ExprStmtNode(line=ctx.start.line, column=ctx.start.column, expr=self.visit(ctx.expr()))
 
     def visitIfStmt(self, ctx: MizanParser.IfStmtContext):
-        """
-        ANTLR exposes ifStmt as ONE flat list of `statement` (both branches mixed),
-        so we split on the token index of ELSE_KW to recover then/else branches.
-        """
         condition = self.visit(ctx.condition())
         if ctx.ELSE_KW():
             else_token_idx = ctx.ELSE_KW().symbol.tokenIndex
@@ -362,15 +364,16 @@ class ASTBuilder(MizanVisitor):
             key, val = 'RECEIVER', ctx.STRING_LIT().getText().strip('"')
         elif ctx.TIMEOUT_KW():
             key, val = 'TIMEOUT', self.visit(ctx.duration())
-        elif ctx.IF_NO_RESP_KW():
-            key = 'IF_NO_RESP'
+        elif ctx.ON_TIMEOUT_KW():  # ✅ CHANGED from IF_NO_RESP_KW
+            key = 'ON_TIMEOUT'
             act = ctx.escalationAction()
             if act.GOTO_KW():
                 target_level = act.getChild(1).getText()
                 val = GotoStmtNode(line=act.start.line, column=act.start.column, target_mode=target_level)
             else:
+                # ✅ CHANGED: Native procedure call instead of ExecProcStmtNode
                 args = [self.visit(a) for a in act.argList().expr()] if act.argList() else []
-                val = ExecProcStmtNode(line=act.start.line, column=act.start.column,
+                val = ProcCallExprNode(line=act.start.line, column=act.start.column,
                                         identifier=act.ID().getText(), arguments=args)
         return EscalationFieldNode(line=ctx.start.line, column=ctx.start.column, key=key, value=val)
 
@@ -392,17 +395,38 @@ class ASTBuilder(MizanVisitor):
             key, val = 'TYPE', 'IMMEDIATE'
         return ReportFieldNode(line=ctx.start.line, column=ctx.start.column, key=key, value=val)
 
-    def visitScheduleSpec(self, ctx: MizanParser.ScheduleSpecContext):
-        freq = 'DAILY' if ctx.DAILY_KW() else 'WEEKLY'
-        day = ctx.STRING_LIT(0).getText().strip('"') if ctx.WEEKLY_KW() else None
-        time_str = ctx.STRING_LIT(1).getText().strip('"') if ctx.WEEKLY_KW() else ctx.STRING_LIT(0).getText().strip('"')
-        return ScheduleSpecNode(line=ctx.start.line, column=ctx.start.column, frequency=freq, day=day, time=time_str)
+    # ✅ NEW: Enterprise Scheduling Visitors (Labeled Alternatives)
+    def visitIntervalSchedule(self, ctx: MizanParser.IntervalScheduleContext):
+        dur = self.visit(ctx.duration())
+        return ScheduleSpecNode(line=ctx.start.line, column=ctx.start.column, 
+                                frequency='INTERVAL', interval_ms=int(dur.to_seconds() * 1000))
 
+    def visitDailySchedule(self, ctx: MizanParser.DailyScheduleContext):
+        return ScheduleSpecNode(line=ctx.start.line, column=ctx.start.column, 
+                                frequency='DAILY', time_str=ctx.STRING_LIT().getText().strip('"'))
+
+    def visitWeeklySchedule(self, ctx: MizanParser.WeeklyScheduleContext):
+        day_name = ctx.STRING_LIT(0).getText().strip('"')
+        days = {'الأحد': 0, 'الاثنين': 1, 'الثلاثاء': 2, 'الأربعاء': 3, 'الخميس': 4, 'الجمعة': 5, 'السبت': 6}
+        return ScheduleSpecNode(line=ctx.start.line, column=ctx.start.column, 
+                                frequency='WEEKLY', target_day=days.get(day_name, 0), 
+                                time_str=ctx.STRING_LIT(1).getText().strip('"'))
+
+    def visitMonthlySchedule(self, ctx: MizanParser.MonthlyScheduleContext):
+        is_last = bool(ctx.LAST_DAY_KW())
+        day_num = int(ctx.NUMBER().getText()) if ctx.NUMBER() else 0
+        return ScheduleSpecNode(line=ctx.start.line, column=ctx.start.column, 
+                                frequency='MONTHLY', target_day=day_num, 
+                                time_str=ctx.STRING_LIT().getText().strip('"'), 
+                                is_last_day=is_last)
+
+    # ✅ NEW: Predictive Maintenance Report Items
     def visitReportItem(self, ctx: MizanParser.ReportItemContext):
         title = ctx.STRING_LIT().getText().strip('"')
         duration = self.visit(ctx.duration()) if ctx.duration() else None
         identifier = ctx.ID().getText() if ctx.ID() else None
         func_name = ctx.aggFunc().getText() if ctx.aggFunc() else None
+        
         if ctx.aggFunc():
             kind = 'AGGREGATE'
         elif ctx.INSTANT_VAL_KW():
@@ -415,6 +439,15 @@ class ASTBuilder(MizanVisitor):
             kind = 'CURRENT_MODE'
         elif ctx.TIMESTAMP_KW():
             kind = 'TIMESTAMP'
+        elif ctx.CYCLE_COUNT_KW():
+            kind = 'CYCLE_COUNT'
+        elif ctx.ACTUATOR_STATE_KW():
+            kind = 'ACTUATOR_STATE'
+        elif ctx.SENSOR_HEALTH_KW():
+            kind = 'SENSOR_HEALTH'
+        else:
+            kind = 'UNKNOWN'
+            
         return ReportItemNode(line=ctx.start.line, column=ctx.start.column, kind=kind,
                                function_name=func_name, title=title, identifier=identifier, duration=duration)
 

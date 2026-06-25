@@ -44,13 +44,23 @@ class MizanVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by MizanParser#dimensionExpr.
-    def visitDimensionExpr(self, ctx:MizanParser.DimensionExprContext):
+    # Visit a parse tree produced by MizanParser#UnitPass.
+    def visitUnitPass(self, ctx:MizanParser.UnitPassContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by MizanParser#baseDim.
-    def visitBaseDim(self, ctx:MizanParser.BaseDimContext):
+    # Visit a parse tree produced by MizanParser#UnitMathExpr.
+    def visitUnitMathExpr(self, ctx:MizanParser.UnitMathExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by MizanParser#UnitBase.
+    def visitUnitBase(self, ctx:MizanParser.UnitBaseContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by MizanParser#UnitParen.
+    def visitUnitParen(self, ctx:MizanParser.UnitParenContext):
         return self.visitChildren(ctx)
 
 
@@ -139,16 +149,6 @@ class MizanVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by MizanParser#conditionClause.
-    def visitConditionClause(self, ctx:MizanParser.ConditionClauseContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by MizanParser#actionClause.
-    def visitActionClause(self, ctx:MizanParser.ActionClauseContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by MizanParser#statement.
     def visitStatement(self, ctx:MizanParser.StatementContext):
         return self.visitChildren(ctx)
@@ -176,11 +176,6 @@ class MizanVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by MizanParser#logStmt.
     def visitLogStmt(self, ctx:MizanParser.LogStmtContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by MizanParser#execProcStmt.
-    def visitExecProcStmt(self, ctx:MizanParser.ExecProcStmtContext):
         return self.visitChildren(ctx)
 
 
@@ -304,6 +299,11 @@ class MizanVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by MizanParser#BoolTrueExpr.
+    def visitBoolTrueExpr(self, ctx:MizanParser.BoolTrueExprContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by MizanParser#AggExpr.
     def visitAggExpr(self, ctx:MizanParser.AggExprContext):
         return self.visitChildren(ctx)
@@ -316,6 +316,11 @@ class MizanVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by MizanParser#MulDivExpr.
     def visitMulDivExpr(self, ctx:MizanParser.MulDivExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by MizanParser#BoolFalseExpr.
+    def visitBoolFalseExpr(self, ctx:MizanParser.BoolFalseExprContext):
         return self.visitChildren(ctx)
 
 
@@ -399,8 +404,23 @@ class MizanVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by MizanParser#scheduleSpec.
-    def visitScheduleSpec(self, ctx:MizanParser.ScheduleSpecContext):
+    # Visit a parse tree produced by MizanParser#IntervalSchedule.
+    def visitIntervalSchedule(self, ctx:MizanParser.IntervalScheduleContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by MizanParser#DailySchedule.
+    def visitDailySchedule(self, ctx:MizanParser.DailyScheduleContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by MizanParser#WeeklySchedule.
+    def visitWeeklySchedule(self, ctx:MizanParser.WeeklyScheduleContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by MizanParser#MonthlySchedule.
+    def visitMonthlySchedule(self, ctx:MizanParser.MonthlyScheduleContext):
         return self.visitChildren(ctx)
 
 
@@ -441,11 +461,6 @@ class MizanVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by MizanParser#unitType.
     def visitUnitType(self, ctx:MizanParser.UnitTypeContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by MizanParser#fieldSep.
-    def visitFieldSep(self, ctx:MizanParser.FieldSepContext):
         return self.visitChildren(ctx)
 
 

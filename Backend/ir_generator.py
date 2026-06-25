@@ -1,4 +1,3 @@
-# Backend/ir_generator.py
 import llvmlite.ir as ir
 import llvmlite.binding as llvm
 from Ast.nodes import *
@@ -40,6 +39,7 @@ class IRGenerator:
         self.mqtt_port     = mqtt_port
         self.data_dir      = data_dir
         self._next_sensor_id = 0
+        self._next_actuator_id = 0
         self.g_modbus_ctx      = None
         self.g_mqtt_ctx        = None
         self.g_current_mode    = None
@@ -61,20 +61,26 @@ class IRGenerator:
         v   = self.void;   i8p = self.i8ptr
         i32 = self.i32;    i64 = self.i64
         dbl = self.double; i1  = self.i1
+        
         self._decl("setup_arabic_console", v,   [])
         self._decl("print_arabic",          v,   [i8p])
         self._decl("mizan_log",             v,   [i8p])
         self._decl("mizan_alert",           v,   [i32, i8p])
         self._decl("panic_div_zero",        v,   [])
+        self._decl("panic_array_bounds",    v,   [i32, i32]) # ✅ NEW: Bounds checking panic
+        
         self._decl("mizan_modbus_connect",       i8p, [i8p, i32])
         self._decl("mizan_modbus_read",          dbl, [i8p, i32])
         self._decl("mizan_modbus_write",         v,   [i8p, i32, dbl])
         self._decl("mizan_modbus_is_connected",  i32, [i8p])
+        
         self._decl("mizan_mqtt_connect",  i8p, [i8p, i32, i8p])
         self._decl("mizan_mqtt_publish",  v,   [i8p, i8p, i8p])
         self._decl("__mizan_set_mqtt_ctx", v,  [i8p])
+        
         self._decl("mizan_now_ms",   i64, [])
         self._decl("mizan_sleep_ms", v,   [i64])
+        
         self._decl("mizan_ring_push", v,   [i32, dbl])
         self._decl("mizan_ring_avg",  dbl, [i32, i64])
         self._decl("mizan_ring_max",  dbl, [i32, i64])
@@ -82,11 +88,23 @@ class IRGenerator:
         self._decl("mizan_ring_sum",  dbl, [i32, i64])
         self._decl("mizan_ring_rate", dbl, [i32, i64])
         self._decl("mizan_ring_last", dbl, [i32])
-        self._decl("mizan_health_track_stuck",  i64, [i32, dbl, i64])
-        self._decl("mizan_health_out_of_range", i32, [dbl, dbl, dbl])
+        
+        # ✅ UPDATED: Edge-triggered health functions
+        self._decl("mizan_health_track_disconnect", i32, [i32, i32])
+        self._decl("mizan_health_track_stuck",      i32, [i32, dbl, i64]) # Changed return to i32
+        self._decl("mizan_health_out_of_range",     i32, [i32, dbl, dbl, dbl]) # Added sid
+        
         self._decl("mizan_escalation_tick", v,   [])
         self._decl("mizan_escalation_arm",  v,   [i32, i32, i64, i8p, i8p])
         self._decl("mizan_report_write", v, [i8p, i8p, i8p, i8p])
+        
+        # ✅ Predictive Maintenance & Scheduling Runtime Functions
+        self._decl("mizan_actuator_cmd", v, [i32, dbl])
+        self._decl("mizan_actuator_cycles", i32, [i32])
+        self._decl("mizan_actuator_state", i32, [i32])
+        self._decl("mizan_sensor_health", i32, [i32])
+        self._decl("mizan_schedule_check", i32, [i32, i32, i32, i32, i32, i32])
+        
         printf_ty   = ir.FunctionType(i32, [i8p], var_arg=True)
         snprintf_ty = ir.FunctionType(i32, [i8p, i64, i8p], var_arg=True)
         self._rt_printf   = ir.Function(self.module, printf_ty,   name="printf")
@@ -111,7 +129,7 @@ class IRGenerator:
             if n in ('حقيقي', 'عدد_حقيقي'): return self.double
             if n in ('صحيح',  'عدد_صحيح'):   return self.i32
             if n == 'منطقي':                  return self.i1
-            return self.double
+            return self.double # All units are doubles at runtime
 
     def _cast(self, val: ir.Value, target: ir.Type) -> ir.Value:
         if val.type == target: return val
@@ -214,7 +232,8 @@ class IRGenerator:
             if f.key == 'ADDRESS':
                 raw = f.value; address = int(raw, 16) if isinstance(raw, str) and raw.startswith('0x') else int(raw)
         gv = self._make_global(f"a_{node.identifier}", self.double)
-        self.global_syms[node.identifier] = {'gv': gv, 'type': self.double, 'kind': 'actuator', 'is_array': False, 'address': address}
+        aid = self._next_actuator_id; self._next_actuator_id += 1
+        self.global_syms[node.identifier] = {'gv': gv, 'type': self.double, 'kind': 'actuator', 'is_array': False, 'address': address, 'actuator_id': aid}
 
     def _declare_scan_cycle_globals(self):
         def mk(name, lt, init_val=None):
@@ -307,9 +326,26 @@ class IRGenerator:
         self._emit_cycle_sleep(cycle_start)
         self.builder.branch(scan_block)
 
-    # ✅ FIX 2: Only push to ring buffer when connected (prevents zero pollution)
+    # ✅ UPGRADED: Watchdog Safe State on Disconnect
     def _emit_input_scan(self):
         mb = self.builder.load(self.g_modbus_ctx, "mb")
+        
+        global_conn = self.builder.call(self._rt_mizan_modbus_is_connected, [mb], "global_conn")
+        is_disconnected = self.builder.icmp_signed('==', global_conn, ir.Constant(self.i32, 0))
+        
+        flush_bb = self.function.append_basic_block("safe_state_flush")
+        cont_bb = self.function.append_basic_block("scan_sensors")
+        self.builder.cbranch(is_disconnected, flush_bb, cont_bb)
+        
+        self.builder.position_at_end(flush_bb)
+        self.builder.store(ir.Constant(self.i32, 0), self.g_wq_count) # Flush queue
+        for name, info in self.global_syms.items():
+            if info['kind'] == 'actuator':
+                self.builder.store(ir.Constant(self.double, 0.0), info['gv']) # Force Safe State
+        self.builder.branch(cont_bb)
+        
+        self.builder.position_at_end(cont_bb)
+        
         for name, info in self.global_syms.items():
             if info['kind'] != 'sensor': continue
             addr  = ir.Constant(self.i32, info['address'])
@@ -319,32 +355,30 @@ class IRGenerator:
             
             conn_raw = self.builder.call(self._rt_mizan_modbus_is_connected, [mb], f"conn_{name}")
             self.builder.store(conn_raw, info['conn_gv'])
-
-            # ✅ FIX 2: Guard ring push with connection check
+            
             is_conn = self.builder.icmp_signed('!=', conn_raw, ir.Constant(self.i32, 0))
             with self.builder.if_then(is_conn):
                 self.builder.call(self._rt_mizan_ring_push, [sid, raw])
-
+                
             self._emit_health_rules(name, info, raw, conn_raw)
 
+    # ✅ UPGRADED: Edge-Triggered Health Rules (ISA-18.2)
     def _emit_health_rules(self, sensor_name: str, info: dict, raw: ir.Value, conn: ir.Value):
         sid = ir.Constant(self.i32, info['sensor_id'])
         for rule in info['health']:
             if rule.kind == 'DISCONNECT':
-                is_disc = self.builder.icmp_signed('==', conn, ir.Constant(self.i32, 0))
-                with self.builder.if_then(is_disc):
+                is_disc_edge = self.builder.call(self._rt_mizan_health_track_disconnect, [sid, conn], "disc_edge")
+                with self.builder.if_then(self.builder.icmp_signed('!=', is_disc_edge, ir.Constant(self.i32, 0))):
                     for s in rule.statements: self._emit_stmt(s)
             elif rule.kind == 'STUCK':
                 thr_ms = int(rule.duration.to_seconds() * 1000) if rule.duration else 60000
-                stuck  = self.builder.call(self._rt_mizan_health_track_stuck, [sid, raw, ir.Constant(self.i64, thr_ms)], "stuck_ms")
-                is_stuck = self.builder.icmp_signed('>=', stuck, ir.Constant(self.i64, thr_ms))
-                with self.builder.if_then(is_stuck):
+                stuck_edge = self.builder.call(self._rt_mizan_health_track_stuck, [sid, raw, ir.Constant(self.i64, thr_ms)], "stuck_edge")
+                with self.builder.if_then(self.builder.icmp_signed('!=', stuck_edge, ir.Constant(self.i32, 0))):
                     for s in rule.statements: self._emit_stmt(s)
             elif rule.kind == 'OUT_OF_RANGE':
                 rng = info.get('range') or (-1e18, 1e18)
-                oor = self.builder.call(self._rt_mizan_health_out_of_range, [raw, ir.Constant(self.double, rng[0]), ir.Constant(self.double, rng[1])], "oor")
-                is_oor = self.builder.icmp_signed('!=', oor, ir.Constant(self.i32, 0))
-                with self.builder.if_then(is_oor):
+                oor_edge = self.builder.call(self._rt_mizan_health_out_of_range, [sid, raw, ir.Constant(self.double, rng[0]), ir.Constant(self.double, rng[1])], "oor_edge")
+                with self.builder.if_then(self.builder.icmp_signed('!=', oor_edge, ir.Constant(self.i32, 0))):
                     for s in rule.statements: self._emit_stmt(s)
 
     def _emit_logic_solve(self):
@@ -368,14 +402,7 @@ class IRGenerator:
     def _emit_rule(self, rule: RuleBlockNode):
         saved_locals = dict(self._locals)
         for local in rule.local_declarations: self._emit_local_decl(local)
-        cond_val = self._emit_cond(rule.condition)
-        then_bb  = self.function.append_basic_block(f"rule_{self._safe_name(rule.identifier)}_then")
-        end_bb   = self.function.append_basic_block(f"rule_{self._safe_name(rule.identifier)}_end")
-        self.builder.cbranch(cond_val, then_bb, end_bb)
-        self.builder.position_at_end(then_bb)
-        for stmt in rule.actions: self._emit_stmt(stmt)
-        if not self.builder.block.is_terminated: self.builder.branch(end_bb)
-        self.builder.position_at_end(end_bb)
+        for stmt in rule.statements: self._emit_stmt(stmt)
         self._locals = saved_locals
 
     def _emit_local_decl(self, node):
@@ -418,96 +445,86 @@ class IRGenerator:
         self.builder.position_at_end(end_bb)
         self.builder.store(ir.Constant(self.i32, 0), self.g_wq_count)
 
-    # ✅ FIX 1: Implemented scheduling logic so reports don't fire every 1-second cycle
     def _emit_reports_tick(self):
-        for rpt in self.report_defs:
-            save_dir, fmt, interval_ms = self.data_dir, "json", 5000  # Default: Daily (24h in ms)
+        for rpt_id, rpt in enumerate(self.report_defs):
+            save_dir, fmt = self.data_dir, "json"
+            schedule = None
             for f in rpt.fields:
                 if f.key == 'SAVE_IN': save_dir = f.value
                 elif f.key == 'FORMAT': fmt = f.value.lower()
-                elif f.key == 'TYPE' and f.value == 'IMMEDIATE':
-                    interval_ms = 0  # Immediate = fire every scan cycle
-
-            rpt_timer_key = f"__rpt_timer_{self._safe_name(rpt.identifier)}"
-            if rpt_timer_key not in self.global_syms:
-                tg = ir.GlobalVariable(self.module, self.i64, name=rpt_timer_key)
-                tg.linkage = 'internal'
-                # ✅ CRITICAL FIX: Initialize to -1 so it doesn't fire immediately at T=0
-                tg.initializer = ir.Constant(self.i64, -1)
-                self.global_syms[rpt_timer_key] = {'gv': tg, 'type': self.i64, 'kind': 'rpt_timer'}
-
-            timer_gv = self.global_syms[rpt_timer_key]['gv']
-
-            if interval_ms == 0:
-                self._emit_single_report(rpt, save_dir, fmt)
-            else:
+                elif f.key == 'SCHEDULE': schedule = f.value
+            
+            if not schedule: continue
+            
+            if schedule.frequency == 'INTERVAL':
+                timer_key = f"__rpt_timer_{rpt_id}"
+                if timer_key not in self.global_syms:
+                    tg = ir.GlobalVariable(self.module, self.i64, name=timer_key)
+                    tg.linkage = 'internal'
+                    tg.initializer = ir.Constant(self.i64, -1)
+                    self.global_syms[timer_key] = {'gv': tg, 'type': self.i64}
+                timer_gv = self.global_syms[timer_key]['gv']
                 now = self.builder.call(self._rt_mizan_now_ms, [], "rpt_now")
                 next_fire = self.builder.load(timer_gv, "next_fire")
-                
-                # ✅ Check if this is the first run (timer is -1)
-                is_first_run = self.builder.icmp_signed('==', next_fire, ir.Constant(self.i64, -1))
-                
-                # ✅ If first run, initialize the timer to now + interval_ms and DO NOT fire
-                with self.builder.if_then(is_first_run):
-                    interval_const = ir.Constant(self.i64, interval_ms)
-                    next_time = self.builder.add(now, interval_const)
-                    self.builder.store(next_time, timer_gv)
-                
-                # ✅ If not first run, check if it's time to fire
+                is_first = self.builder.icmp_signed('==', next_fire, ir.Constant(self.i64, -1))
+                with self.builder.if_then(is_first):
+                    self.builder.store(self.builder.add(now, ir.Constant(self.i64, schedule.interval_ms)), timer_gv)
                 is_due = self.builder.icmp_signed('>=', now, next_fire)
                 with self.builder.if_then(is_due):
-                    self._emit_single_report(rpt, save_dir, fmt)
-                    interval_const = ir.Constant(self.i64, interval_ms)
-                    next_time = self.builder.add(now, interval_const)
-                    self.builder.store(next_time, timer_gv)
+                    self._emit_single_report(rpt, save_dir, fmt, rpt_id)
+                    self.builder.store(self.builder.add(now, ir.Constant(self.i64, schedule.interval_ms)), timer_gv)
+            else:
+                type_id = {'DAILY': 1, 'WEEKLY': 2, 'MONTHLY': 3}[schedule.frequency]
+                day = schedule.target_day if schedule.target_day is not None else 0
+                hour, min = map(int, schedule.time_str.split(':'))
+                is_last = 1 if schedule.is_last_day else 0
+                
+                should_fire = self.builder.call(self._rt_mizan_schedule_check, [
+                    ir.Constant(self.i32, rpt_id), ir.Constant(self.i32, type_id),
+                    ir.Constant(self.i32, day), ir.Constant(self.i32, hour), ir.Constant(self.i32, min),
+                    ir.Constant(self.i32, is_last)
+                ])
+                with self.builder.if_then(self.builder.icmp_signed('!=', should_fire, ir.Constant(self.i32, 0))):
+                    self._emit_single_report(rpt, save_dir, fmt, rpt_id)
 
-    # ✅ FIX 1: Extracted JSON building logic into a helper
-    def _emit_single_report(self, rpt, save_dir, fmt):
+    def _emit_single_report(self, rpt, save_dir, fmt, rpt_id):
         buf_ptr = self.builder.bitcast(self.g_rpt_buf, self.i8ptr)
         parts, args = ["{"], []
         first = True
-        
         for item in rpt.content:
             comma = "" if first else ","
             first = False
-            
             if item.kind == 'AGGREGATE':
                 sid = self.global_syms.get(item.identifier, {}).get('sensor_id')
                 if sid is None: continue
                 wms = int(item.duration.to_seconds() * 1000)
-                fn_map = {
-                    'متوسط': self._rt_mizan_ring_avg, 'اقصى': self._rt_mizan_ring_max,
-                    'ادنى': self._rt_mizan_ring_min, 'مجموع': self._rt_mizan_ring_sum,
-                    'معدل_التغيير': self._rt_mizan_ring_rate
-                }
+                fn_map = {'متوسط': self._rt_mizan_ring_avg, 'اقصى': self._rt_mizan_ring_max,
+                          'ادنى': self._rt_mizan_ring_min, 'مجموع': self._rt_mizan_ring_sum,
+                          'معدل_التغيير': self._rt_mizan_ring_rate}
                 rfn = fn_map.get(item.function_name)
-                if rfn is None: continue
-                val = self.builder.call(rfn, [ir.Constant(self.i32, sid), ir.Constant(self.i64, wms)], "agg")
-                parts.append(f'{comma}"{item.title}":%f')
-                args.append(val)
-                
+                if rfn: val = self.builder.call(rfn, [ir.Constant(self.i32, sid), ir.Constant(self.i64, wms)]); parts.append(f'{comma}"{item.title}":%f'); args.append(val)
             elif item.kind == 'INSTANT':
                 info = self._lookup(item.identifier)
-                if info is None: continue
-                val = self._cast(self.builder.load(info['gv']), self.double)
-                parts.append(f'{comma}"{item.title}":%f')
-                args.append(val)
-                
+                if info: val = self._cast(self.builder.load(info['gv']), self.double); parts.append(f'{comma}"{item.title}":%f'); args.append(val)
+            elif item.kind == 'CYCLE_COUNT':
+                aid = self.global_syms.get(item.identifier, {}).get('actuator_id')
+                if aid is not None: val = self.builder.call(self._rt_mizan_actuator_cycles, [ir.Constant(self.i32, aid)]); parts.append(f'{comma}"{item.title}":%d'); args.append(val)
+            elif item.kind == 'ACTUATOR_STATE':
+                aid = self.global_syms.get(item.identifier, {}).get('actuator_id')
+                if aid is not None: val = self.builder.call(self._rt_mizan_actuator_state, [ir.Constant(self.i32, aid)]); parts.append(f'{comma}"{item.title}":%d'); args.append(val)
+            elif item.kind == 'SENSOR_HEALTH':
+                sid = self.global_syms.get(item.identifier, {}).get('sensor_id')
+                if sid is not None: val = self.builder.call(self._rt_mizan_sensor_health, [ir.Constant(self.i32, sid)]); parts.append(f'{comma}"{item.title}":%d'); args.append(val)
             elif item.kind == 'CURRENT_MODE':
-                val = self._cast(self.builder.load(self.g_current_mode), self.double)
-                parts.append(f'{comma}"{item.title}":%f')
-                args.append(val)
+                val = self._cast(self.builder.load(self.g_current_mode), self.double); parts.append(f'{comma}"{item.title}":%f'); args.append(val)
                 
         parts.append("}")
         fmt_str = "".join(parts)
         fmt_gv  = self._str_const(fmt_str, "rpt_fmt")
-        
         self.builder.call(self._rt_snprintf, [buf_ptr, ir.Constant(self.i64, 2048), fmt_gv] + args)
-        
         id_str  = self._str_const(rpt.identifier, "rpt_id")
         fmt_arg = self._str_const(fmt, "rpt_fmtarg")
         dir_str = self._str_const(save_dir, "rpt_dir")
-        
         self.builder.call(self._rt_mizan_report_write, [id_str, fmt_arg, dir_str, buf_ptr])
 
     def _emit_mode_switch(self):
@@ -536,7 +553,9 @@ class IRGenerator:
         if info is None or info['kind'] != 'actuator': return
         VALS = {'تشغيل':1.0,'ايقاف':0.0,'مفتوح':1.0,'مغلق':0.0,'نشط':1.0,'غير_نشط':0.0}
         wv = ir.Constant(self.double, VALS.get(node.value, 1.0)) if isinstance(node.value, str) else self._cast(self._emit_expr(node.value), self.double)
-        self.builder.store(wv, info['gv']); self._queue_write(info['address'], wv)
+        self.builder.store(wv, info['gv'])
+        self.builder.call(self._rt_mizan_actuator_cmd, [ir.Constant(self.i32, info['actuator_id']), wv])
+        self._queue_write(info['address'], wv)
 
     def _stmt_AlertStmtNode(self, node: AlertStmtNode):
         lvl_map = {'مستوى_1': 1, 'مستوى_2': 2, 'مستوى_3': 3}
@@ -545,16 +564,8 @@ class IRGenerator:
         self.builder.call(self._rt_mizan_alert, [lvl, msg])
 
     def _stmt_LogStmtNode(self, node: LogStmtNode):
-        # ✅ FIX: Removed the duplicate "[سجل] " prefix. 
-        # The C runtime (mizan_log) already handles adding it.
         msg = self._str_const(node.message, "log")
         self.builder.call(self._rt_mizan_log, [msg])
-
-    def _stmt_ExecProcStmtNode(self, node: ExecProcStmtNode):
-        fn = self.procedures.get(node.identifier)
-        if fn is None: return
-        args = [self._cast(self._emit_expr(expr), param.type) for expr, param in zip(node.arguments, fn.args)]
-        self.builder.call(fn, args)
 
     def _stmt_GotoStmtNode(self, node: GotoStmtNode):
         tid = self.mode_ids.get(node.target_mode, -1)
@@ -671,30 +682,68 @@ class IRGenerator:
     def _expr_BooleanLiteralNode(self, node: BooleanLiteralNode) -> ir.Value: return ir.Constant(self.i1, 1 if node.value else 0)
     def _expr_StringLiteralNode(self, node: StringLiteralNode) -> ir.Value: return self._str_const(node.value, "strlit")
 
+    # ✅ UPGRADED: Array Bounds Checking
     def _expr_VariableExprNode(self, node: VariableExprNode) -> ir.Value:
         info = self._lookup(node.identifier)
         if info is None: return ir.Constant(self.double, 0.0)
         if node.index_expr is not None and info.get('is_array'):
-            idx = self._cast(self._emit_expr(node.index_expr), self.i32); slot = self.builder.gep(info['gv'], [ir.Constant(self.i32,0), idx], inbounds=True); return self.builder.load(slot, f"{node.identifier}_el")
+            idx = self._cast(self._emit_expr(node.index_expr), self.i32)
+            size = info.get('array_size', 0)
+            
+            is_out_of_bounds = self.builder.or_(
+                self.builder.icmp_signed('<', idx, ir.Constant(self.i32, 0)),
+                self.builder.icmp_signed('>=', idx, ir.Constant(self.i32, size))
+            )
+            panic_bb = self.function.append_basic_block("array_panic")
+            safe_bb = self.function.append_basic_block("array_safe")
+            self.builder.cbranch(is_out_of_bounds, panic_bb, safe_bb)
+            
+            self.builder.position_at_end(panic_bb)
+            self.builder.call(self._rt_panic_array_bounds, [idx, ir.Constant(self.i32, size)])
+            self.builder.unreachable()
+            
+            self.builder.position_at_end(safe_bb)
+            slot = self.builder.gep(info['gv'], [ir.Constant(self.i32,0), idx], inbounds=True)
+            return self.builder.load(slot, f"{node.identifier}_el")
+            
         return self.builder.load(info['gv'], node.identifier)
 
     def _expr_BinaryOpNode(self, node: BinaryOpNode) -> ir.Value:
-        lv = self._emit_expr(node.left); rv = self._emit_expr(node.right)
+        lv = self._emit_expr(node.left)
+        rv = self._emit_expr(node.right)
+        
         is_f = isinstance(lv.type, ir.DoubleType) or isinstance(rv.type, ir.DoubleType)
+        
+        # ✅ RUNTIME PANIC MODE: Check for Division by Zero
+        if node.op in ('/', '%'):
+            rv_dbl = self._cast(rv, self.double)
+            is_zero = self.builder.fcmp_ordered('==', rv_dbl, ir.Constant(self.double, 0.0), "is_zero")
+            
+            panic_bb = self.function.append_basic_block("div_zero_panic")
+            safe_bb  = self.function.append_basic_block("div_safe")
+            
+            self.builder.cbranch(is_zero, panic_bb, safe_bb)
+            
+            self.builder.position_at_end(panic_bb)
+            self.builder.call(self._rt_panic_div_zero, [])
+            self.builder.unreachable() 
+            
+            self.builder.position_at_end(safe_bb)
+            lv_dbl = self._cast(lv, self.double)
+            if node.op == '/': return self.builder.fdiv(lv_dbl, rv_dbl, "fdiv")
+            if node.op == '%': return self.builder.frem(lv_dbl, rv_dbl, "frem")
+
         if is_f:
             lv = self._cast(lv, self.double); rv = self._cast(rv, self.double)
             if node.op == '+': return self.builder.fadd(lv, rv, "fadd")
             if node.op == '-': return self.builder.fsub(lv, rv, "fsub")
             if node.op == '*': return self.builder.fmul(lv, rv, "fmul")
-            if node.op == '/': return self.builder.fdiv(lv, rv, "fdiv")
-            if node.op == '%': return self.builder.frem(lv, rv, "frem")
         else:
             if node.op == '+': return self.builder.add(lv, rv, "add")
             if node.op == '-': return self.builder.sub(lv, rv, "sub")
             if node.op == '*': return self.builder.mul(lv, rv, "mul")
-            if node.op == '/':
-                lf = self.builder.sitofp(lv, self.double); rf = self.builder.sitofp(rv, self.double); return self.builder.fdiv(lf, rf, "divf")
             if node.op == '%': return self.builder.srem(lv, rv, "rem")
+            
         return ir.Constant(self.double, 0.0)
 
     def _expr_UnaryMinusNode(self, node: UnaryMinusNode) -> ir.Value:
