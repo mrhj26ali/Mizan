@@ -72,11 +72,11 @@ Source (.mizan) → ANTLR4 Parser → AST → Semantic Analyzer → LLVM IR → 
 │   └── text_utils.py         # Arabic text normalization (diacritics, hamza, presentation forms)
 │
 ├── examples/
-│   ├── 1.mizan               # Hello world / basic sensor read
-│   ├── 2.mizan               # Conditionals
-│   ├── 3.mizan               # Loops
-│   ├── 4.mizan               # Procedures
-│   └── 5.mizan               # Full control program
+│   ├── 1.mizan               
+│   ├── 2.mizan               
+│   ├── 3.mizan              
+│   ├── 4.mizan              
+│   └── 5.mizan               
 │
 └── mizan-doc/
     ├── mizan_language_reference.docx
