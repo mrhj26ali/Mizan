@@ -311,6 +311,3 @@ python view_reports.py
 
 ---
 
-## License
-
-*(Add your license here.)*
