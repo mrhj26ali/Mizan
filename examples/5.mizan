@@ -57,7 +57,7 @@
     }
     
     قاعدة التبريد {
-        اذا (الحرارة < 60.0) {
+        اذا (الحرارة < 7) {
             سجل "برد النظام، العودة للمعالجة"؛
             انتقل_الى معالجة؛
         }
@@ -67,7 +67,6 @@
 // ✅ DEMO: Transition Table Enforcement
 انتقالات {
     من اقلاع الى معالجة؛
-    // 🚨 COMPILE ERROR DEMO: Delete the next line to show FSM enforcement!
    
     من طوارئ الى معالجة؛
 }

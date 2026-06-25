@@ -72,10 +72,10 @@ declare i32 @"printf"(i8* %".1", ...)
 
 declare i32 @"snprintf"(i8* %".1", i64 %".2", i8* %".3", ...)
 
-@"s_الضغط" = internal global double 0.0
-@"s_الضغط_conn" = internal global i32 1
-@"a_مضخة_الحقن" = internal global double 0.0
-@"g_حالة_الحقن" = internal global i32 0
+@"s_الحرارة" = internal global double 0.0
+@"s_الحرارة_conn" = internal global i32 1
+@"a_مضخة_التبريد" = internal global double 0.0
+@"g_حالة_التبريد" = internal global i1 0
 @"__modbus_ctx" = internal global i8* null
 @"__mqtt_ctx" = internal global i8* null
 @"__current_mode" = internal global i32 0
@@ -96,9 +96,9 @@ entry:
   %".8" = call i8* @"mizan_mqtt_connect"(i8* %".6", i32 1884, i8* %".7")
   store i8* %".8", i8** @"__mqtt_ctx"
   call void @"__mizan_set_mqtt_ctx"(i8* %".8")
-  store i32 0, i32* @"g_حالة_الحقن"
+  store i1 0, i1* @"g_حالة_التبريد"
   store i32 0, i32* @"__current_mode"
-  %".13" = bitcast [36 x i8]* @"__log_4" to i8*
+  %".13" = bitcast [55 x i8]* @"__log_4" to i8*
   call void @"mizan_log"(i8* %".13")
   store i32 1, i32* @"__pending_goto"
   br label %"scan_cycle"
@@ -110,21 +110,21 @@ scan_cycle:
   br i1 %".17", label %"safe_state_flush", label %"scan_sensors"
 safe_state_flush:
   store i32 0, i32* @"__wq_count"
-  store double              0x0, double* @"a_مضخة_الحقن"
+  store double              0x0, double* @"a_مضخة_التبريد"
   br label %"scan_sensors"
 scan_sensors:
-  %"raw_الضغط" = call double @"mizan_modbus_read"(i8* %"mb", i32 2)
-  store double %"raw_الضغط", double* @"s_الضغط"
-  %"conn_الضغط" = call i32 @"mizan_modbus_is_connected"(i8* %"mb")
-  store i32 %"conn_الضغط", i32* @"s_الضغط_conn"
-  %".24" = icmp ne i32 %"conn_الضغط", 0
+  %"raw_الحرارة" = call double @"mizan_modbus_read"(i8* %"mb", i32 8)
+  store double %"raw_الحرارة", double* @"s_الحرارة"
+  %"conn_الحرارة" = call i32 @"mizan_modbus_is_connected"(i8* %"mb")
+  store i32 %"conn_الحرارة", i32* @"s_الحرارة_conn"
+  %".24" = icmp ne i32 %"conn_الحرارة", 0
   br i1 %".24", label %"scan_sensors.if", label %"scan_sensors.endif"
 scan_sensors.if:
-  call void @"mizan_ring_push"(i32 0, double %"raw_الضغط")
+  call void @"mizan_ring_push"(i32 0, double %"raw_الحرارة")
   br label %"scan_sensors.endif"
 scan_sensors.endif:
   %"cur_mode" = load i32, i32* @"__current_mode"
-  switch i32 %"cur_mode", label %"mode_default" [i32 0, label %"mode_m86043" i32 1, label %"mode_m36121"]
+  switch i32 %"cur_mode", label %"mode_default" [i32 0, label %"mode_m46458" i32 1, label %"mode_m77285"]
 mode_default:
   br label %"mode_end"
 mode_end:
@@ -133,120 +133,114 @@ mode_end:
   %"fi" = alloca i32
   store i32 0, i32* %"fi"
   br label %"flush_cond"
-mode_m86043:
+mode_m46458:
   br label %"mode_end"
-mode_m36121:
-  %"الضغط" = load double, double* @"s_الضغط"
-  %"fcmp" = fcmp ogt double %"الضغط", 0x4020000000000000
-  br i1 %"fcmp", label %"if_then", label %"if_else"
+mode_m77285:
+  %"الحرارة" = load double, double* @"s_الحرارة"
+  %"i2f" = sitofp i32 90 to double
+  %"fcmp" = fcmp ogt double %"الحرارة", %"i2f"
+  %"t_now" = call i64 @"mizan_now_ms"()
+  %"sus_res" = alloca i1
+  store i1 0, i1* %"sus_res"
+  br i1 %"fcmp", label %"sus_true", label %"sus_false"
+sus_true:
+  %".32" = load i64, i64* @"__sustain_2561222929984"
+  %".33" = icmp eq i64 %".32", -1
+  br i1 %".33", label %"sus_set", label %"sus_chk"
+sus_false:
+  store i64 -1, i64* @"__sustain_2561222929984"
+  store i1 0, i1* %"sus_res"
+  br label %"sus_done"
+sus_done:
+  %".45" = load i1, i1* %"sus_res"
+  br i1 %".45", label %"if_then", label %"if_else"
+sus_set:
+  store i64 %"t_now", i64* @"__sustain_2561222929984"
+  br label %"sus_chk"
+sus_chk:
+  %".37" = load i64, i64* @"__sustain_2561222929984"
+  %".38" = sub i64 %"t_now", %".37"
+  %".39" = icmp sge i64 %".38", 5000
+  store i1 %".39", i1* %"sus_res"
+  br label %"sus_done"
 if_then:
-  store double 0x3ff0000000000000, double* @"a_مضخة_الحقن"
+  store double 0x3ff0000000000000, double* @"a_مضخة_التبريد"
   call void @"mizan_actuator_cmd"(i32 0, double 0x3ff0000000000000)
   %"wqc" = load i32, i32* @"__wq_count"
-  %".33" = icmp slt i32 %"wqc", 64
-  br i1 %".33", label %"if_then.if", label %"if_then.endif"
+  %".49" = icmp slt i32 %"wqc", 64
+  br i1 %".49", label %"if_then.if", label %"if_then.endif"
 if_else:
-  store double              0x0, double* @"a_مضخة_الحقن"
+  store double              0x0, double* @"a_مضخة_التبريد"
   call void @"mizan_actuator_cmd"(i32 0, double              0x0)
   %"wqc.1" = load i32, i32* @"__wq_count"
-  %".48" = icmp slt i32 %"wqc.1", 64
-  br i1 %".48", label %"if_else.if", label %"if_else.endif"
+  %".64" = icmp slt i32 %"wqc.1", 64
+  br i1 %".64", label %"if_else.if", label %"if_else.endif"
 if_end:
   br label %"mode_end"
 if_then.if:
-  %".35" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %"wqc"
-  %".36" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %"wqc"
-  store i32 36, i32* %".35"
-  store double 0x3ff0000000000000, double* %".36"
-  %".39" = add i32 %"wqc", 1
-  store i32 %".39", i32* @"__wq_count"
+  %".51" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %"wqc"
+  %".52" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %"wqc"
+  store i32 34, i32* %".51"
+  store double 0x3ff0000000000000, double* %".52"
+  %".55" = add i32 %"wqc", 1
+  store i32 %".55", i32* @"__wq_count"
   br label %"if_then.endif"
 if_then.endif:
-  %".42" = bitcast [56 x i8]* @"__alert_5" to i8*
-  call void @"mizan_alert"(i32 1, i8* %".42")
-  store i32 1, i32* @"g_حالة_الحقن"
+  %".58" = bitcast [68 x i8]* @"__log_5" to i8*
+  call void @"mizan_log"(i8* %".58")
+  store i1 1, i1* @"g_حالة_التبريد"
   br label %"if_end"
 if_else.if:
-  %".50" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %"wqc.1"
-  %".51" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %"wqc.1"
-  store i32 36, i32* %".50"
-  store double              0x0, double* %".51"
-  %".54" = add i32 %"wqc.1", 1
-  store i32 %".54", i32* @"__wq_count"
+  %".66" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %"wqc.1"
+  %".67" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %"wqc.1"
+  store i32 34, i32* %".66"
+  store double              0x0, double* %".67"
+  %".70" = add i32 %"wqc.1", 1
+  store i32 %".70", i32* @"__wq_count"
   br label %"if_else.endif"
 if_else.endif:
-  store i32 0, i32* @"g_حالة_الحقن"
+  store i1 0, i1* @"g_حالة_التبريد"
   br label %"if_end"
 flush_cond:
-  %".63" = load i32, i32* %"fi"
-  %".64" = icmp slt i32 %".63", %"flush_n"
-  br i1 %".64", label %"flush_body", label %"flush_end"
+  %".79" = load i32, i32* %"fi"
+  %".80" = icmp slt i32 %".79", %"flush_n"
+  br i1 %".80", label %"flush_body", label %"flush_end"
 flush_body:
-  %".66" = load i32, i32* %"fi"
-  %".67" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %".66"
-  %".68" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %".66"
-  %".69" = load i32, i32* %".67"
-  %".70" = load double, double* %".68"
-  call void @"mizan_modbus_write"(i8* %"mb_out", i32 %".69", double %".70")
-  %".72" = add i32 %".66", 1
-  store i32 %".72", i32* %"fi"
+  %".82" = load i32, i32* %"fi"
+  %".83" = getelementptr inbounds [64 x i32], [64 x i32]* @"__wq_addrs", i32 0, i32 %".82"
+  %".84" = getelementptr inbounds [64 x double], [64 x double]* @"__wq_values", i32 0, i32 %".82"
+  %".85" = load i32, i32* %".83"
+  %".86" = load double, double* %".84"
+  call void @"mizan_modbus_write"(i8* %"mb_out", i32 %".85", double %".86")
+  %".88" = add i32 %".82", 1
+  store i32 %".88", i32* %"fi"
   br label %"flush_cond"
 flush_end:
   store i32 0, i32* @"__wq_count"
   call void @"mizan_escalation_tick"()
-  %"rpt_now" = call i64 @"mizan_now_ms"()
-  %"next_fire" = load i64, i64* @"__rpt_timer_0"
-  %".77" = icmp eq i64 %"next_fire", -1
-  br i1 %".77", label %"flush_end.if", label %"flush_end.endif"
-flush_end.if:
-  %".79" = add i64 %"rpt_now", 5000
-  store i64 %".79", i64* @"__rpt_timer_0"
-  br label %"flush_end.endif"
-flush_end.endif:
-  %".82" = icmp sge i64 %"rpt_now", %"next_fire"
-  br i1 %".82", label %"flush_end.endif.if", label %"flush_end.endif.endif"
-flush_end.endif.if:
-  %".84" = bitcast [2048 x i8]* @"__rpt_buf" to i8*
-  %".85" = call i32 @"mizan_actuator_cycles"(i32 0)
-  %".86" = call i32 @"mizan_actuator_state"(i32 0)
-  %".87" = call i32 @"mizan_sensor_health"(i32 0)
-  %".88" = bitcast [87 x i8]* @"__rpt_fmt_6" to i8*
-  %".89" = call i32 (i8*, i64, i8*, ...) @"snprintf"(i8* %".84", i64 2048, i8* %".88", i32 %".85", i32 %".86", i32 %".87")
-  %".90" = bitcast [26 x i8]* @"__rpt_id_7" to i8*
-  %".91" = bitcast [5 x i8]* @"__rpt_fmtarg_8" to i8*
-  %".92" = bitcast [14 x i8]* @"__rpt_dir_9" to i8*
-  call void @"mizan_report_write"(i8* %".90", i8* %".91", i8* %".92", i8* %".84")
-  %".94" = add i64 %"rpt_now", 5000
-  store i64 %".94", i64* @"__rpt_timer_0"
-  br label %"flush_end.endif.endif"
-flush_end.endif.endif:
   %"pending" = load i32, i32* @"__pending_goto"
-  %".97" = icmp ne i32 %"pending", -1
-  br i1 %".97", label %"flush_end.endif.endif.if", label %"flush_end.endif.endif.endif"
-flush_end.endif.endif.if:
+  %".93" = icmp ne i32 %"pending", -1
+  br i1 %".93", label %"flush_end.if", label %"flush_end.endif"
+flush_end.if:
   store i32 %"pending", i32* @"__current_mode"
   store i32 -1, i32* @"__pending_goto"
-  br label %"flush_end.endif.endif.endif"
-flush_end.endif.endif.endif:
+  br label %"flush_end.endif"
+flush_end.endif:
   %"now" = call i64 @"mizan_now_ms"()
   %"elapsed" = sub i64 %"now", %"cycle_start"
   %"remain" = sub i64 500, %"elapsed"
-  %".102" = icmp sgt i64 %"remain", 0
-  br i1 %".102", label %"flush_end.endif.endif.endif.if", label %"flush_end.endif.endif.endif.endif"
-flush_end.endif.endif.endif.if:
+  %".98" = icmp sgt i64 %"remain", 0
+  br i1 %".98", label %"flush_end.endif.if", label %"flush_end.endif.endif"
+flush_end.endif.if:
   call void @"mizan_sleep_ms"(i64 %"remain")
-  br label %"flush_end.endif.endif.endif.endif"
-flush_end.endif.endif.endif.endif:
+  br label %"flush_end.endif.endif"
+flush_end.endif.endif:
   br label %"scan_cycle"
 }
 
 @"__dev_ip_1" = private constant [10 x i8] c"127.0.0.1\00"
 @"__mq_host_2" = private constant [10 x i8] c"127.0.0.1\00"
 @"__mq_cid_3" = private constant [14 x i8] c"mizan-runtime\00"
-@"__log_4" = private constant [36 x i8] c"\d8\a8\d8\af\d8\a1 \d9\86\d8\b8\d8\a7\d9\85 \d8\a7\d9\84\d8\aa\d9\82\d8\a7\d8\b1\d9\8a\d8\b1...\00"
-@"__alert_5" = private constant [56 x i8] c"[\d8\aa\d9\86\d8\a8\d9\8a\d9\87 \d9\85\d8\b3\d8\aa\d9\88\d9\89_1] \d8\a7\d9\84\d8\b6\d8\ba\d8\b7 \d9\85\d8\b1\d8\aa\d9\81\d8\b9 \d8\ac\d8\af\d8\a7!\00"
-@"__rpt_timer_0" = internal global i64 -1
-@"__rpt_fmt_6" = private constant [87 x i8] c"{\22\d8\af\d9\88\d8\b1\d8\a7\d8\aa_\d8\a7\d9\84\d9\85\d8\b6\d8\ae\d8\a9\22:%d,\22\d8\ad\d8\a7\d9\84\d8\a9_\d8\a7\d9\84\d9\85\d8\b6\d8\ae\d8\a9\22:%d,\22\d8\b3\d9\84\d8\a7\d9\85\d8\a9_\d8\a7\d9\84\d8\ad\d8\b3\d8\a7\d8\b3\22:%d}\00"
-@"__rpt_id_7" = private constant [26 x i8] c"\d8\aa\d9\82\d8\b1\d9\8a\d8\b1_\d8\a7\d9\84\d8\b5\d9\8a\d8\a7\d9\86\d8\a9\00"
-@"__rpt_fmtarg_8" = private constant [5 x i8] c"json\00"
-@"__rpt_dir_9" = private constant [14 x i8] c"./reports/cbm\00"
+@"__log_4" = private constant [55 x i8] c"\d8\a8\d8\af\d8\a1 \d8\a7\d8\ae\d8\aa\d8\a8\d8\a7\d8\b1 \d8\a7\d9\84\d8\a7\d9\85\d8\a7\d9\86 \d8\a7\d9\84\d9\81\d9\8a\d8\b2\d9\8a\d8\a7\d8\a6\d9\8a...\00"
+@"__sustain_2561222929984" = internal global i64 -1
+@"__log_5" = private constant [68 x i8] c"\d8\ad\d8\b1\d8\a7\d8\b1\d8\a9 \d9\85\d8\b1\d8\aa\d9\81\d8\b9\d8\a9 \d8\a8\d8\a7\d8\b3\d8\aa\d9\85\d8\b1\d8\a7\d8\b1\d8\8c \d8\aa\d8\b4\d8\ba\d9\8a\d9\84 \d8\a7\d9\84\d9\85\d8\b6\d8\ae\d8\a9.\00"

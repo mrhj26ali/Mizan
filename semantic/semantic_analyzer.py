@@ -24,7 +24,7 @@ _BUILTIN_MODES = {'اقلاع', 'تشغيل', 'صيانة', 'طوارئ'}
 class SemanticAnalyzer:
 
     def __init__(self):
-        self.current_scope: Environment = Environment(name="Global")
+        self.current_scope: Environment = Environment(name="النطاق العام")
         self.all_scopes: list[Environment] = [self.current_scope]
         self.errors: list[str] = []
         self.warnings: list[str] = []
@@ -170,7 +170,7 @@ class SemanticAnalyzer:
         if sym: sym.return_type = return_type
         
         old_scope = self.current_scope
-        self._enter_scope(f"Proc_{node.identifier}")
+        self._enter_scope(f"الإجراء: {node.identifier}")
         
         for param in node.params:
             self.visit(param)
@@ -315,7 +315,8 @@ class SemanticAnalyzer:
 
         old_scope, old_mode = self.current_scope, self.current_mode
         self.current_mode = node.mode_name
-        self._enter_scope(f"Mode_{node.mode_name}")
+        self._enter_scope(f"الوضع: {node.mode_name}")
+
 
         for stmt in node.on_start_statements:
             self.visit(stmt)
@@ -334,7 +335,7 @@ class SemanticAnalyzer:
     def visit_RuleBlockNode(self, node: RuleBlockNode):
         # ✅ UPDATED: Rules are now just blocks of statements. No separate condition/action clauses.
         old_scope = self.current_scope
-        self._enter_scope(f"Rule_{node.identifier}")
+        self._enter_scope(f"القاعدة: {node.identifier}")
         self.current_scope.define(node.identifier, RuleSymbol(node.identifier, self.current_mode or "؟"))
         
         for decl in node.local_declarations:
@@ -383,11 +384,11 @@ class SemanticAnalyzer:
         if cond_type and cond_type != ERROR_TYPE and cond_type != BOOL_TYPE:
             self.log_error(node, "❌ خطأ منطقي: شرط 'اذا' يجب أن يكون منطقياً (Boolean).")
         old_scope = self.current_scope
-        self._enter_scope(f"If_then_{node.line}")
+        self._enter_scope(f"فرع اذا (سطر {node.line})")
         for stmt in node.then_branch: self.visit(stmt)
         self._exit_scope()
         if node.else_branch:
-            self._enter_scope(f"If_else_{node.line}")
+            self._enter_scope(f"فرع والا (سطر {node.line})")
             for stmt in node.else_branch: self.visit(stmt)
             self._exit_scope()
         return None
@@ -397,7 +398,7 @@ class SemanticAnalyzer:
         if cond_type and cond_type != ERROR_TYPE and cond_type != BOOL_TYPE:
             self.log_error(node, "❌ خطأ منطقي: شرط 'طالما' يجب أن يكون منطقياً (Boolean).")
         old_scope = self.current_scope
-        self._enter_scope(f"While_{node.line}")
+        self._enter_scope(f"حلقة طالما (سطر {node.line})")
         for stmt in node.body: self.visit(stmt)
         self._exit_scope()
         return None

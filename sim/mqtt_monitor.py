@@ -9,7 +9,23 @@ Run in a separate terminal:
 Requires mosquitto running on localhost:1883.
 Windows: winget install EclipseMosquitto.Mosquitto  then  mosquitto -v
 """
+import sys
+import os
+import json
+import paho.mqtt.client as mqtt
+from paho.mqtt.enums import CallbackAPIVersion
 
+# ✅ ROBUST UTF-8 FIX FOR WINDOWS
+# 1. Tell Python to safely reconfigure the output stream to UTF-8
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
+# 2. Tell the Windows Terminal to interpret bytes as UTF-8 (Code Page 65001)
 import json
 import paho.mqtt.client as mqtt
 from paho.mqtt.enums import CallbackAPIVersion   # paho-mqtt >= 2.0
