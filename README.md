@@ -72,11 +72,11 @@ Source (.mizan) → ANTLR4 Parser → AST → Semantic Analyzer → LLVM IR → 
 │   └── text_utils.py         # Arabic text normalization (diacritics, hamza, presentation forms)
 │
 ├── examples/
-│   ├── 1.mizan               
-│   ├── 2.mizan               
-│   ├── 3.mizan              
-│   ├── 4.mizan              
-│   └── 5.mizan               
+│   ├── 1.mizan
+│   ├── 2.mizan
+│   ├── 3.mizan
+│   ├── 4.mizan
+│   └── 5.mizan
 │
 └── mizan-doc/
     ├── mizan_language_reference.docx
@@ -85,48 +85,205 @@ Source (.mizan) → ANTLR4 Parser → AST → Semantic Analyzer → LLVM IR → 
 
 ---
 
-## Prerequisites
+## Getting Started on Windows (Complete Setup Guide)
 
-### Python dependencies
+This section walks you through everything you need to go from a fresh clone to a running compiler. Follow the steps in order.
+
+### Step 1 — Install system tools
+
+You need four tools installed on your machine before touching Python. Install them in this order.
+
+**1a. LLVM 18**
+
+Download and run `LLVM-18.1.8-win64.exe`. During installation, when asked about PATH, select **"Add LLVM to the system PATH for all users"**. This gives you the `clang` compiler that Mizan uses to link the final executable.
+
+**1b. MSYS2**
+
+Download and run `msys2-x86_64-20260611.exe`. Install it to the default path `C:\msys64` — the compiler looks for libraries there. After installation, open the **MSYS2 MINGW64** terminal (not MSYS2 MSYS, not MSYS2 UCRT64 — specifically **MINGW64**) and run:
 
 ```bash
+pacman -Syu
+```
+
+Close and reopen the terminal if it asks you to, then run:
+
+```bash
+pacman -S mingw-w64-x86_64-libmodbus mingw-w64-x86_64-mosquitto
+```
+
+This installs the two C libraries that the Mizan runtime links against (libmodbus for Modbus TCP, libmosquitto for MQTT).
+
+**1c. Mosquitto broker**
+
+Download and run `mosquitto-2.1.2-install-windows-x64.exe`. This installs the MQTT broker that compiled Mizan programs publish to. The default installation path is `C:\Program Files\mosquitto`.
+
+**1d. Graphviz** *(optional — only needed for the `--ast` flag)*
+
+Download and run `windows_10_cmake_Release_graphviz-install-12.2.1-win64.exe`. During installation, select **"Add Graphviz to the system PATH"**. Skip this if you do not plan to use AST visualization.
+
+---
+
+### Step 2 — Set up Python and the virtual environment
+
+Open a regular **Windows PowerShell** or **Command Prompt** (not MSYS2) and navigate to the folder where you cloned the repo:
+
+```powershell
+cd C:\path\to\mizan
+```
+
+Create a virtual environment:
+
+```powershell
+python -m venv venv
+```
+
+Activate it:
+
+```powershell
+venv\Scripts\activate
+```
+
+Your prompt should now start with `(venv)`. Install all Python dependencies:
+
+```powershell
 pip install -r requirements.txt
 ```
 
-| Package | Version |
-|---|---|
-| antlr4-python3-runtime | 4.13.2 |
-| llvmlite | 0.47.0 |
-| graphviz | 0.20.3 |
-| paho-mqtt | 2.1.0 |
-| pymodbus | 3.8.1 |
+> **Keep this virtual environment active** whenever you run the simulation scripts (`plant_simulator.py`, `mqtt_monitor.py`) from PowerShell. You will re-activate it the same way each time you open a new terminal session.
 
-### System dependencies
+---
 
-- **ANTLR4** runtime (for generating the lexer/parser from `Mizan.g4`)
-- **LLVM** (compatible with llvmlite 0.47, i.e. LLVM 14)
-- **clang** or **gcc** (for linking the compiled object file with the C runtime)
-- **libmodbus** — Modbus TCP client library
-- **libmosquitto** — Eclipse Mosquitto MQTT client library
-- **Mosquitto broker** — for MQTT functionality (can run locally: `mosquitto -v`)
+### Step 3 — Generate the ANTLR4 parser
 
-On Ubuntu/Debian:
-```bash
-sudo apt install clang libmodbus-dev libmosquitto-dev mosquitto
+The grammar file `Frontend/Mizan.g4` must be compiled into Python source files before the compiler can run. You only need to do this once (or again if the grammar changes).
+
+Download the ANTLR4 tool JAR: [antlr-4.13.2-complete.jar](https://www.antlr.org/download/antlr-4.13.2-complete.jar) and place it somewhere convenient, e.g. `C:\tools\antlr-4.13.2-complete.jar`.
+
+Make sure you have Java installed (JDK 11 or later), then run this from the **root of the repo** in PowerShell:
+
+```powershell
+java -jar C:\tools\antlr-4.13.2-complete.jar -Dlanguage=Python3 -visitor Frontend/Mizan.g4 -o Frontend/
 ```
 
-On Windows (MSYS2/MinGW64):
-```bash
-pacman -S mingw-w64-x86_64-clang mingw-w64-x86_64-libmodbus mingw-w64-x86_64-mosquitto
+This generates `Frontend/MizanLexer.py`, `Frontend/MizanParser.py`, `Frontend/MizanVisitor.py`, and `Frontend/MizanListener.py`. These files are listed in `.gitignore` so they will not appear in the repository — you must generate them yourself.
+
+---
+
+### Step 4 — Check and configure the Mosquitto port
+
+Mizan uses MQTT port **1884** by default (not the standard 1883, to avoid conflicts with any existing broker). Before running anything, confirm that port 1884 is free on your machine.
+
+Open PowerShell and run:
+
+```powershell
+netstat -ano | findstr :1884
 ```
 
-### Generating the ANTLR4 lexer and parser
+If nothing is returned, the port is free and you can proceed. If something is already using it, you have two options:
 
-Before running the compiler for the first time, generate the Python parser from the grammar:
+**Option A — Use a different port when compiling:**
+
+```powershell
+python compiler.py examples/5.mizan --mqtt-port 1885
+```
+
+And start the broker on that port instead:
+
+```powershell
+mosquitto -p 1885 -v
+```
+
+**Option B — Change the default port in the source:**
+
+Open `compiler.py` and find the argument definition:
+
+```python
+ap.add_argument("--mqtt-port", type=int, default=1884, ...)
+```
+
+Change `1884` to whatever port you want as your new default. Then start the broker on that same port.
+
+Also update `sim/mqtt_monitor.py` — at the bottom of the file, find:
+
+```python
+client.connect("localhost", 1884, keepalive=60)
+```
+
+Change `1884` to match your chosen port.
+
+---
+
+### Step 5 — Run the compiler via MSYS2 MINGW64
+
+The compilation step (which links C runtime files) **must be run from the MSYS2 MINGW64 terminal**, because it needs access to the MinGW `clang` toolchain and the native libraries installed in Step 1b.
+
+Open the **MSYS2 MINGW64** terminal and navigate to your repo. MSYS2 uses Unix-style paths — a Windows path like `C:\Users\you\projects\mizan` becomes `/c/Users/you/projects/mizan`:
 
 ```bash
-antlr4 -Dlanguage=Python3 -visitor Frontend/Mizan.g4 -o Frontend/
+cd /c/Users/you/projects/mizan
 ```
+
+Now activate the Python virtual environment you created in Step 2. From MSYS2 MINGW64:
+
+```bash
+source venv/Scripts/activate
+```
+
+Your prompt should now show `(venv)`. Verify Python is working:
+
+```bash
+python --version
+```
+
+You are now ready to compile `.mizan` files.
+
+---
+
+## Running a Full Test Session
+
+Running Mizan requires **three terminals open at the same time**. Here is the recommended setup:
+
+**Terminal 1 — Mosquitto broker (PowerShell)**
+
+```powershell
+mosquitto -p 1884 -v
+```
+
+Leave this running. It will print a log line every time a Mizan program connects or publishes a message.
+
+**Terminal 2 — Plant simulator (PowerShell with venv active)**
+
+```powershell
+venv\Scripts\activate
+python sim/plant_simulator.py
+```
+
+This starts a fake Modbus TCP server on `localhost:5020` that simulates a physical plant (sensors, actuators). It also exposes an interactive CLI:
+
+```
+Commands: set level <val> | set temp <val> | disconnect | reconnect | auto
+```
+
+You can type these commands at any time to simulate sensor changes or network faults while the compiled program is running.
+
+**Terminal 3 — MQTT monitor (PowerShell with venv active)**
+
+```powershell
+venv\Scripts\activate
+python sim/mqtt_monitor.py
+```
+
+This subscribes to all MQTT topics and prints every message the compiled program publishes — alerts, telemetry, logs, and reports.
+
+**Terminal 4 — Compiler (MSYS2 MINGW64 with venv active)**
+
+```bash
+cd /c/Users/you/projects/mizan
+source venv/Scripts/activate
+python compiler.py examples/5.mizan --run
+```
+
+The `--run` flag compiles the program and immediately executes the resulting `mizan_app.exe`. You should see output in Terminals 1, 2, and 3 as the program connects to the simulator and broker.
 
 ---
 
@@ -179,130 +336,87 @@ options:
 
 ---
 
-## Running the simulator
-
-To test a compiled program without physical hardware, start the interactive plant simulator in one terminal and the compiled executable in another.
-
-**Terminal 1 — start the plant simulator:**
-```bash
-python sim/plant_simulator.py
-```
-
-This starts a Modbus TCP server on `localhost:5020` and exposes an interactive CLI:
-```
-Commands: set level <val> | set temp <val> | disconnect | reconnect | auto
-```
-
-**Terminal 2 — start the MQTT broker:**
-```bash
-mosquitto -p 1884 -v
-```
-
-**Terminal 3 — monitor MQTT topics:**
-```bash
-python sim/mqtt_monitor.py
-```
-
-**Terminal 4 — run the compiled program:**
-```bash
-./mizan_app
-```
-
----
-
-## Language quick reference
+## Language Quick Reference
 
 A Mizan program is structured around five top-level constructs: device configuration, sensor/actuator declarations, operating modes, control rules, and optional reports.
 
-```
-// Define the target device
-جهاز PLC_الرئيسي {
-    نوع: "Modbus-TCP"
-    عنوان_IP: "127.0.0.1"
-    منفذ: 5020
-    دورة_المسح: 500 مللي_ثانية
+```// sample_1_basics.mizan
+برنامج التحكم_الاساسي؛
+
+جهاز وحدة_التحكم {
+    نوع: "PLC",
+    بروتوكول: "modbus_tcp",
+    عنوان_ip: "127.0.0.1",
+    منفذ: 5020,
+    دورة_مسح: 500 مللي_ثانية
+};
+
+حساس مستوى_الخزان {
+    نوع: متر,
+    نطاق: [0..4],
+    عنوان: 0x0000,
+};
+
+مشغل صمام_الدخول {
+    نوع: منطقي,
+    عنوان: 0x0020,
+};
+
+// Global variables (Grammar requires variables to be top-level or inside rules)
+متغير عداد_المعايرة: صحيح = 0؛
+متغير حالة_النظام: صحيح = 0؛
+
+
+اجراء فحص_النظام(الحد: حقيقي) يرجع منطقي {
+    اذا (مستوى_الخزان < الحد) {
+        ارجع صح؛
+    }
+    ارجع خطا؛
 }
 
-// Declare a sensor
-حساس الضغط {
-    نوع: حقيقي بالوحدة بار
-    نطاق: 0..100
-    عنوان: 0x0002
-    صحة {
-        عند_انقطاع_الاتصال: تنبيه خطر "انقطاع الاتصال"
-        عند_قيمة_ثابتة مدة 10 ثانية: تنبيه تحذير "قيمة ثابتة"
-        عند_خروج_عن_النطاق: تنبيه خطر "خروج عن النطاق"
+وضع اقلاع {
+    عند_بدء {
+        سجل "بدء نظام التحكم..."؛
+        
+        
+        عداد_المعايرة =٠؛
+        طالما (عداد_المعايرة < 3) {
+            سجل "جاري الفحص..."؛
+            عداد_المعايرة = عداد_المعايرة + 1؛
+            انتظر 1 ثانية؛
+        }
+        سجل "اكتملت المعايرة."؛
+        انتقل_الى تشغيل_عادي؛
     }
 }
 
-// Declare an actuator
-مشغّل صمام_الضغط {
-    نوع: حقيقي بالوحدة بالمئة
-    نطاق: 0..100
-    عنوان: 0x0024
+وضع تشغيل_عادي {
+    قاعدة التحكم_التلقائي {
+        متغير يحتاج_فتح: منطقي = فحص_النظام(1.5)؛
+        
+        
+        اذا (يحتاج_فتح) {
+            امر صمام_الدخول: تشغيل؛
+            سجل "المستوى منخفض، جاري الفتح."؛
+        } والا {
+            امر صمام_الدخول: ايقاف؛
+            سجل "المستوى طبيعي."؛
+        }
+    }
 }
 
-// Define operating modes
-الأوضاع: تشغيل، إيقاف
-
-// Define allowed FSM transitions
 انتقالات {
-    إيقاف الى تشغيل
-    تشغيل الى إيقاف
-}
-
-// Control logic
-وضع تشغيل {
-    قاعدة التحكم_بالضغط {
-        اذا الضغط > 8.0 بار {
-            أمر صمام_الضغط = 1.0
-            تنبيه خطر "ضغط عالٍ"
-        }
-        والا {
-            أمر صمام_الضغط = 0.0
-        }
-    }
-}
-
-// Scheduled report
-تقرير تقرير_الضغط {
-    جدول: كل 5000 مللي_ثانية
-    تنسيق: json
-    حفظ_في: "reports/cbm"
-    محتوى {
-        قيمة_لحظية الضغط بعنوان "متوسط_الضغط"
-    }
+    من اقلاع الى تشغيل_عادي؛
 }
 ```
-
-### Data types
-
-| Keyword | Description |
-|---|---|
-| `صحيح` | Integer |
-| `حقيقي` | Float |
-| `منطقي` | Boolean |
-| `نص` | String |
-| `حقيقي بالوحدة <unit>` | Float with physical unit |
-
-### Control flow
-
-| Keyword | Meaning |
-|---|---|
-| `اذا ... والا` | if / else |
-| `طالما` | while loop |
-| `انتقل_الى` | go-to mode (FSM transition) |
-| `انتظر` | wait for a duration |
-
-### Built-in units (sample)
 
 Pressure: `بار`, `باسكال` · Temperature: `سيلزيوس` · Flow: `لتر_في_الدقيقة`, `لتر_في_الساعة`, `متر_مكعب_في_الساعة` · Speed: `متر_في_الثانية`, `دورة_في_الدقيقة` · Electrical: `فولت`, `امبير`, `أوم`, `واط` · Other: `بالمئة`, `NTU`, `جزء_في_المليون`, `لوكس`, `سيمنز`
 
 ---
 
-## Viewing reports
+## Viewing Reports
 
-After a run, use the report viewer to print all generated JSON reports to a summary file:
+After a run the use reports, use the report viewer to print all generated JSON reports to a summary file:
 
 ```bash
 python view_reports.py
@@ -311,3 +425,19 @@ python view_reports.py
 
 ---
 
+## Troubleshooting
+
+**"MizanLexer not found" or import errors on first run**
+You have not generated the ANTLR4 parser yet. See Step 3 above.
+
+**"clang not found" or linking fails**
+Make sure you are running `compiler.py` from the **MSYS2 MINGW64** terminal, not PowerShell. The MinGW clang installed via pacman is not the same as the system LLVM clang.
+
+**"Cannot connect" in the compiled program**
+Make sure the plant simulator (Terminal 2) and Mosquitto broker (Terminal 1) are both running before you launch the compiled executable.
+
+**Port conflict on 1884**
+Run `netstat -ano | findstr :1884` in PowerShell to check. See Step 4 for how to switch ports.
+
+**Arabic text displays as boxes or question marks**
+Ensure your terminal supports UTF-8. In Windows Terminal this is the default. In older cmd.exe, run `chcp 65001` before launching anything.
