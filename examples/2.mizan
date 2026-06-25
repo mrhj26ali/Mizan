@@ -30,7 +30,6 @@
     عند_بدء {
         سجل "بدء اختبار الأمان الفيزيائي..."؛
         
-        // 🚨 ERROR DEMO: Uncomment the line below to see the compiler crash!
         
         
         انتقل_الى تشغيل؛
