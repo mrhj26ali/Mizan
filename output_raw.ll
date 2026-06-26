@@ -138,7 +138,7 @@ scan_sensors.endif.endif.if:
   br label %"scan_sensors.endif.endif.endif"
 scan_sensors.endif.endif.endif:
   %"cur_mode" = load i32, i32* @"__current_mode"
-  switch i32 %"cur_mode", label %"mode_default" [i32 0, label %"mode_m8564" i32 1, label %"mode_m99874"]
+  switch i32 %"cur_mode", label %"mode_default" [i32 0, label %"mode_m21059" i32 1, label %"mode_m17691"]
 mode_default:
   br label %"mode_end"
 mode_end:
@@ -147,9 +147,9 @@ mode_end:
   %"fi" = alloca i32
   store i32 0, i32* %"fi"
   br label %"flush_cond"
-mode_m8564:
+mode_m21059:
   br label %"mode_end"
-mode_m99874:
+mode_m17691:
   %"الحرارة" = load double, double* @"s_الحرارة"
   %"fcmp" = fcmp ogt double %"الحرارة", 0x4049000000000000
   br i1 %"fcmp", label %"if_then", label %"if_else"
