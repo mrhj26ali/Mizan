@@ -1,6 +1,6 @@
 from Frontend.MizanVisitor import MizanVisitor
 from Frontend.MizanParser import MizanParser
-from Ast.nodes import *
+from Frontend.Ast.nodes import *
 
 class ASTBuilder(MizanVisitor):
     """Builds Mizan's clean AST from the ANTLR concrete parse tree."""
@@ -152,10 +152,10 @@ class ASTBuilder(MizanVisitor):
 
     # ── Variables & types ───────────────────────────────────────────
     def visitVarDecl(self, ctx: MizanParser.VarDeclContext):
+        expr_node = self.visit(ctx.expr()) if ctx.expr() else None
         return VarDeclNode(line=ctx.start.line, column=ctx.start.column,
-                            identifier=ctx.ID().getText(), var_type=self.visit(ctx.varType()),
-                            expr=self.visit(ctx.expr()))
-
+                       identifier=ctx.ID().getText(), var_type=self.visit(ctx.varType()),
+                       expr=expr_node)
     def visitConstDecl(self, ctx: MizanParser.ConstDeclContext):
         return ConstDeclNode(line=ctx.start.line, column=ctx.start.column,
                               identifier=ctx.ID().getText(), var_type=self.visit(ctx.varType()),

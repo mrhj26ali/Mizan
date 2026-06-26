@@ -217,7 +217,7 @@ def units_compatible_for_op(left, right, op: str) -> bool:
 def compute_unit_signature(unit_expr_node) -> Tuple[Dict[str, int], Set[str]]:
     """Recursively computes the dimensional signature and atomic composition 
     from a UnitMathExprNode or UnitBaseNode."""
-    from Ast.nodes import UnitMathExprNode, UnitBaseNode
+    from Frontend.Ast.nodes import UnitMathExprNode, UnitBaseNode
     
     if isinstance(unit_expr_node, UnitBaseNode):
         name = unit_expr_node.unit_name

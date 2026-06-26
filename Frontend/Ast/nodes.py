@@ -1,23 +1,17 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 from abc import ABC, abstractmethod
-
-from Ast.ast_visitor import ASTVisitor
-
+from Frontend.Ast.ast_visitor import ASTVisitor
 
 @dataclass(kw_only=True)
 class ASTNode(ABC):
     line: int = 0
     column: int = 0
-
     @abstractmethod
     def accept(self, visitor):
         method_name = f'visit_{self.__class__.__name__}'
         visitor_method = getattr(visitor, method_name)
         return visitor_method(self)
-
-
-# ── Structural & configuration nodes ──────────────────────────────
 
 @dataclass
 class ProgramNode(ASTNode):
@@ -34,14 +28,8 @@ class DurationNode(ASTNode):
     value: float
     unit: str
     def accept(self, visitor): return visitor.visit_DurationNode(self)
-    
     def to_seconds(self) -> float:
-        # ✅ EXPANDED: Added Week and Month for enterprise scheduling
-        factors = {
-            'مللي_ثانية': 0.001, 'ثانية': 1.0, 'دقيقة': 60.0, 
-            'ساعة': 3600.0, 'يوم': 86400.0, 
-            'اسبوع': 604800.0, 'شهر': 2592000.0  # 30 days standard
-        }
+        factors = {'مللي_ثانية': 0.001, 'ثانية': 1.0, 'دقيقة': 60.0, 'ساعة': 3600.0, 'يوم': 86400.0, 'اسبوع': 604800.0, 'شهر': 2592000.0}
         return self.value * factors.get(self.unit, 1.0)
 
 @dataclass
@@ -56,11 +44,10 @@ class DeviceBlockNode(ASTNode):
     fields: List[DeviceFieldNode]
     def accept(self, visitor): return visitor.visit_DeviceBlockNode(self)
 
-# ✅ NEW: Concrete Unit System Nodes (Replaced DimensionExprNode)
 @dataclass
 class UnitMathExprNode(ASTNode):
     left: ASTNode
-    op: str  # '*' or '/'
+    op: str
     right: ASTNode
     def accept(self, visitor): return visitor.visit_UnitMathExprNode(self)
 
@@ -72,7 +59,7 @@ class UnitBaseNode(ASTNode):
 @dataclass
 class CustomUnitDefNode(ASTNode):
     identifier: str
-    unit_expr: ASTNode  # ✅ CHANGED: Was 'dimension: DimensionExprNode'
+    unit_expr: ASTNode
     def accept(self, visitor): return visitor.visit_CustomUnitDefNode(self)
 
 @dataclass
@@ -84,9 +71,6 @@ class CustomUnitsBlockNode(ASTNode):
 class CustomModesBlockNode(ASTNode):
     modes: List[str]
     def accept(self, visitor): return visitor.visit_CustomModesBlockNode(self)
-
-
-# ── Type system & hardware declarations ───────────────────────────
 
 @dataclass
 class BaseTypeNode(ASTNode):
@@ -108,7 +92,7 @@ class RangeSpecNode(ASTNode):
 
 @dataclass
 class HealthRuleNode(ASTNode):
-    kind: str  # 'DISCONNECT' | 'STUCK' | 'OUT_OF_RANGE'
+    kind: str
     duration: Optional[DurationNode]
     statements: List[ASTNode]
     def accept(self, visitor): return visitor.visit_HealthRuleNode(self)
@@ -137,16 +121,12 @@ class ActuatorDeclNode(ASTNode):
     fields: List[ActuatorFieldNode]
     def accept(self, visitor): return visitor.visit_ActuatorDeclNode(self)
 
-
-# ── Core variables & procedure declarations ───────────────────────
-
 @dataclass
 class VarDeclNode(ASTNode):
     identifier: str
     var_type: ASTNode
-    expr: ASTNode
+    expr: Optional[ASTNode] = None  
     def accept(self, visitor): return visitor.visit_VarDeclNode(self)
-
 @dataclass
 class ConstDeclNode(ASTNode):
     identifier: str
@@ -168,14 +148,11 @@ class ProcedureDefNode(ASTNode):
     body: List[ASTNode]
     def accept(self, visitor): return visitor.visit_ProcedureDefNode(self)
 
-
-# ── Operating modes & safety rules (IEC 62443) ────────────────────
-
 @dataclass
 class RuleBlockNode(ASTNode):
     identifier: str
     local_declarations: List[ASTNode]
-    statements: List[ASTNode]  # ✅ CHANGED: Removed 'condition' and 'actions'. Rules are just blocks of statements now!
+    statements: List[ASTNode]
     def accept(self, visitor): return visitor.visit_RuleBlockNode(self)
 
 @dataclass
@@ -184,9 +161,6 @@ class ModeBlockNode(ASTNode):
     on_start_statements: List[ASTNode]
     rules: List[RuleBlockNode]
     def accept(self, visitor): return visitor.visit_ModeBlockNode(self)
-
-
-# ── Statements ──────────────────────────────────────────────────
 
 @dataclass
 class CommandStmtNode(ASTNode):
@@ -204,8 +178,6 @@ class AlertStmtNode(ASTNode):
 class LogStmtNode(ASTNode):
     message: str
     def accept(self, visitor): return visitor.visit_LogStmtNode(self)
-
-# 🗑️ DELETED: ExecProcStmtNode (Procedure calls are now native expressions!)
 
 @dataclass
 class GotoStmtNode(ASTNode):
@@ -231,7 +203,7 @@ class DefaultValStmtNode(ASTNode):
 
 @dataclass
 class ExprStmtNode(ASTNode):
-    expr: ASTNode  # ✅ This now wraps ProcCallExprNode for standalone procedure calls
+    expr: ASTNode
     def accept(self, visitor): return visitor.visit_ExprStmtNode(self)
 
 @dataclass
@@ -247,18 +219,33 @@ class WhileStmtNode(ASTNode):
     body: List[ASTNode]
     def accept(self, visitor): return visitor.visit_WhileStmtNode(self)
 
+# ✅ ISSUE 4: For Loop Node
+@dataclass
+class ForStmtNode(ASTNode):
+    init: Optional[ASTNode]
+    condition: ASTNode
+    update: Optional[ASTNode]
+    body: List[ASTNode]
+    def accept(self, visitor): return visitor.visit_ForStmtNode(self)
+
+# ✅ ISSUE 3: Break & Continue Nodes
+@dataclass
+class BreakStmtNode(ASTNode):
+    def accept(self, visitor): return visitor.visit_BreakStmtNode(self)
+
+@dataclass
+class ContinueStmtNode(ASTNode):
+    def accept(self, visitor): return visitor.visit_ContinueStmtNode(self)
+
 @dataclass
 class ReturnStmtNode(ASTNode):
     expr: Optional[ASTNode]
     def accept(self, visitor): return visitor.visit_ReturnStmtNode(self)
 
-
-# ── Conditions & boolean expressions ──────────────────────────────
-
 @dataclass
 class BinaryCondNode(ASTNode):
     left: ASTNode
-    op: str  # 'AND' | 'OR'
+    op: str
     right: ASTNode
     def accept(self, visitor): return visitor.visit_BinaryCondNode(self)
 
@@ -296,9 +283,6 @@ class BooleanLiteralNode(ASTNode):
 class VariableCondNode(ASTNode):
     identifier: str
     def accept(self, visitor): return visitor.visit_VariableCondNode(self)
-
-
-# ── Arithmetic expressions ─────────────────────────────────────────
 
 @dataclass
 class BinaryOpNode(ASTNode):
@@ -341,13 +325,16 @@ class VariableExprNode(ASTNode):
     index_expr: Optional[ASTNode]
     def accept(self, visitor): return visitor.visit_VariableExprNode(self)
 
-
-# ── Escalation management (ISA-18.2) ──────────────────────────────
+# ✅ ISSUE 7: Array Literal Node
+@dataclass
+class ArrayLiteralNode(ASTNode):
+    elements: List[ASTNode]
+    def accept(self, visitor): return visitor.visit_ArrayLiteralNode(self)
 
 @dataclass
 class EscalationFieldNode(ASTNode):
-    key: str  # 'MESSAGE', 'RECEIVER', 'TIMEOUT', 'ON_TIMEOUT' (Changed from IF_NO_RESP)
-    value: Union[str, DurationNode, ASTNode] # ASTNode can be GotoStmtNode or ProcCallExprNode
+    key: str
+    value: Union[str, DurationNode, ASTNode]
     def accept(self, visitor): return visitor.visit_EscalationFieldNode(self)
 
 @dataclass
@@ -362,16 +349,13 @@ class EscalationDefNode(ASTNode):
     levels: List[EscalationLevelNode]
     def accept(self, visitor): return visitor.visit_EscalationDefNode(self)
 
-
-# ── Industrial data reporting subsystem ────────────────────────────
-
 @dataclass
 class ScheduleSpecNode(ASTNode):
-    frequency: str  # 'INTERVAL', 'DAILY', 'WEEKLY', 'MONTHLY'
+    frequency: str
     interval_ms: Optional[int] = None
-    target_day: Optional[int] = None  # 0-6 for weekly, 1-31 for monthly
-    time_str: Optional[str] = None    # "HH:MM"
-    is_last_day: bool = False         # ✅ NEW: For "اخر_يوم" (End-of-month clamping)
+    target_day: Optional[int] = None
+    time_str: Optional[str] = None
+    is_last_day: bool = False
     def accept(self, visitor): return visitor.visit_ScheduleSpecNode(self)
 
 @dataclass
@@ -382,8 +366,7 @@ class ReportFieldNode(ASTNode):
 
 @dataclass
 class ReportItemNode(ASTNode):
-    # ✅ EXPANDED: Added 'CYCLE_COUNT', 'ACTUATOR_STATE', 'SENSOR_HEALTH' to kinds
-    kind: str  
+    kind: str
     title: str
     identifier: Optional[str]
     duration: Optional[DurationNode]
@@ -396,9 +379,6 @@ class ReportDefNode(ASTNode):
     fields: List[ReportFieldNode]
     content: List[ReportItemNode]
     def accept(self, visitor): return visitor.visit_ReportDefNode(self)
-
-
-# ── Finite state transitions (FSM) ─────────────────────────────────
 
 @dataclass
 class TransitionRuleNode(ASTNode):

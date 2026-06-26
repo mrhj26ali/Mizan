@@ -4,14 +4,14 @@
 # =====================================================================
 
 import re
-from Ast.nodes import *
-from semantic.environment import Environment, SemanticError
-from semantic.symbols import (
+from Frontend.Ast.nodes import *
+from Frontend.semantic.environment import Environment, SemanticError
+from Frontend. semantic.symbols import (
     VariableSymbol, ConstSymbol, ProcedureSymbol,
     SensorSymbol, ActuatorSymbol, DeviceSymbol, ModeSymbol,
     RuleSymbol, EscalationSymbol,
 )
-from semantic.types_system import (
+from Frontend.semantic.types_system import (
     BOOL_TYPE, INT_TYPE, FLOAT_TYPE, STRING_TYPE, ERROR_TYPE,
     UnitType, get_result_type, types_compatible, units_compatible_for_op,
     FloatType, IntType, compute_unit_signature, dimension_signatures_equal,
@@ -271,19 +271,22 @@ class SemanticAnalyzer:
 
     def visit_VarDeclNode(self, node: VarDeclNode):
         declared_type = self.resolve_type(node.var_type)
-        expr_type = self.visit(node.expr)
+    # Only evaluate expression if it exists
+        expr_type = self.visit(node.expr) if node.expr else None 
+    
         if expr_type and expr_type != ERROR_TYPE and declared_type != ERROR_TYPE:
             if not self._types_compatible(declared_type, expr_type):
                 self.log_error(node, f"عدم توافق الأنواع: لا يمكن إسناد نوع '{expr_type}' إلى المتغير '{node.identifier}' المعرّف بـ '{declared_type}'.")
-        
+    
         is_array = isinstance(node.var_type, ArrayTypeNode)
         array_size = node.var_type.size if is_array else 0
         try:
-            self.current_scope.define_strict(node.identifier,
-                VariableSymbol(node.identifier, declared_type, is_array=is_array, array_size=array_size), node)
+           self.current_scope.define_strict(node.identifier,
+               VariableSymbol(node.identifier, declared_type, is_array=is_array, array_size=array_size), node)
         except SemanticError as e:
             self.log_error(node, str(e))
         return declared_type
+               
 
     def visit_ConstDeclNode(self, node: ConstDeclNode):
         declared_type = self.resolve_type(node.var_type)

@@ -13,7 +13,7 @@
     نوع: سيلزيوس,
     نطاق: [0..150],
     عنوان: 0x0008,
-    // ✅ DEMO: Hardware faults declared directly on the sensor
+    
     صحة {
         عند_انقطاع_الاتصال {
             تنبيه مستوى_3 "فقدان الاتصال!"؛ // Fires EXACTLY ONCE

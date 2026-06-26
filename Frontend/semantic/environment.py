@@ -1,5 +1,5 @@
 from typing import Optional, Dict, List
-from semantic.symbols import Symbol
+from Frontend.semantic.symbols import Symbol
 
 
 class SemanticError(Exception):

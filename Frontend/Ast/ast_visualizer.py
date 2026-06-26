@@ -1,5 +1,5 @@
 import graphviz
-from Ast.nodes import *
+from Frontend.Ast.nodes import *
 
 
 class ASTVisualizerVisitor:
@@ -27,7 +27,8 @@ class ASTVisualizerVisitor:
     def visit_ProgramNode(self, node):
         self.dot.node(str(id(node)), "Program", fillcolor='#B0BEC5')
         for d in node.declarations:
-            self.add_node_and_edge(node, d, "decl")
+            if d is not None:
+                self.add_node_and_edge(node, d, "decl")
 
     def visit_ProgramDeclNode(self, node):
         self.dot.node(str(id(node)), f"برنامج\n{node.name}", fillcolor='#90CAF9')
@@ -35,7 +36,8 @@ class ASTVisualizerVisitor:
     def visit_DeviceBlockNode(self, node):
         self.dot.node(str(id(node)), f"جهاز\n{node.identifier}", fillcolor='#81D4FA')
         for f in node.fields:
-            self.add_node_and_edge(node, f, "حقل")
+            if f is not None:
+                self.add_node_and_edge(node, f, "حقل")
 
     def visit_DeviceFieldNode(self, node):
         val = node.value if not isinstance(node.value, ASTNode) else "..."
@@ -46,15 +48,21 @@ class ASTVisualizerVisitor:
     def visit_CustomUnitsBlockNode(self, node):
         self.dot.node(str(id(node)), "وحدات مخصصة", fillcolor='#CE93D8')
         for u in node.units:
-            self.add_node_and_edge(node, u, "وحدة")
+            if u is not None:
+                self.add_node_and_edge(node, u, "وحدة")
+
+    def visit_UnitMathExprNode(self, node):
+        self.dot.node(str(id(node)), f"وحدة-عملية\n{node.op}", fillcolor='#E1BEE7')
+        self.add_node_and_edge(node, node.left, "يسار")
+        self.add_node_and_edge(node, node.right, "يمين")
+
+    def visit_UnitBaseNode(self, node):
+        self.dot.node(str(id(node)), f"وحدة\n{node.unit_name}", fillcolor='#E1BEE7')
 
     def visit_CustomUnitDefNode(self, node):
         self.dot.node(str(id(node)), f"وحدة: {node.identifier}", fillcolor='#E1BEE7')
-        self.add_node_and_edge(node, node.dimension, "بُعد")
-
-    def visit_DimensionExprNode(self, node):
-        label = " ".join(node.elements)
-        self.dot.node(str(id(node)), f"بُعد\n{label}", fillcolor='#F3E5F5')
+        if node.unit_expr:
+            self.add_node_and_edge(node, node.unit_expr, "تعريف")
 
     def visit_CustomModesBlockNode(self, node):
         self.dot.node(str(id(node)), f"أوضاع مخصصة\n{', '.join(node.modes)}", fillcolor='#CE93D8')
@@ -62,13 +70,15 @@ class ASTVisualizerVisitor:
     def visit_SensorDeclNode(self, node):
         self.dot.node(str(id(node)), f"حساس\n{node.identifier}", fillcolor='#80DEEA')
         for f in node.fields:
-            self.add_node_and_edge(node, f, "حقل")
+            if f is not None:
+                self.add_node_and_edge(node, f, "حقل")
 
     def visit_SensorFieldNode(self, node):
         if node.key == 'HEALTH' and isinstance(node.value, list):
             self.dot.node(str(id(node)), "صحة الحساس", fillcolor='#B2EBF2')
             for rule in node.value:
-                self.add_node_and_edge(node, rule, "قاعدة")
+                if rule is not None:
+                    self.add_node_and_edge(node, rule, "قاعدة")
         else:
             val = node.value if not isinstance(node.value, ASTNode) else "..."
             self.dot.node(str(id(node)), f"{node.key}\n{val}", fillcolor='#E0F7FA')
@@ -78,7 +88,8 @@ class ASTVisualizerVisitor:
     def visit_ActuatorDeclNode(self, node):
         self.dot.node(str(id(node)), f"مشغّل\n{node.identifier}", fillcolor='#80CBC4')
         for f in node.fields:
-            self.add_node_and_edge(node, f, "حقل")
+            if f is not None:
+                self.add_node_and_edge(node, f, "حقل")
 
     def visit_ActuatorFieldNode(self, node):
         val = node.value if not isinstance(node.value, ASTNode) else "..."
@@ -93,54 +104,66 @@ class ASTVisualizerVisitor:
         dur = f"\nمدة: {node.duration.value} {node.duration.unit}" if node.duration else ""
         self.dot.node(str(id(node)), f"قاعدة صحة\n{node.kind}{dur}", fillcolor='#FFF9C4')
         for s in node.statements:
-            self.add_node_and_edge(node, s, "جملة")
+            if s is not None:
+                self.add_node_and_edge(node, s, "جملة")
 
     def visit_BaseTypeNode(self, node):
         self.dot.node(str(id(node)), f"نوع\n{node.type_name}", fillcolor='#E8EAF6')
 
     def visit_ArrayTypeNode(self, node):
         self.dot.node(str(id(node)), f"مصفوفة[{node.size}]", fillcolor='#C5CAE9')
-        self.add_node_and_edge(node, node.element_type, "نوع العنصر")
+        if node.element_type:
+            self.add_node_and_edge(node, node.element_type, "نوع العنصر")
 
     def visit_VarDeclNode(self, node):
         self.dot.node(str(id(node)), f"متغير\n{node.identifier}", fillcolor='#C8E6C9')
-        self.add_node_and_edge(node, node.var_type, "نوع")
-        self.add_node_and_edge(node, node.expr, "قيمة")
+        if node.var_type:
+            self.add_node_and_edge(node, node.var_type, "نوع")
+        if node.expr:
+            self.add_node_and_edge(node, node.expr, "قيمة")
 
     def visit_ConstDeclNode(self, node):
         self.dot.node(str(id(node)), f"ثابت\n{node.identifier}", fillcolor='#FFF9C4')
-        self.add_node_and_edge(node, node.var_type, "نوع")
-        self.add_node_and_edge(node, node.expr, "قيمة")
+        if node.var_type:
+            self.add_node_and_edge(node, node.var_type, "نوع")
+        if node.expr:
+            self.add_node_and_edge(node, node.expr, "قيمة")
 
     def visit_ProcedureDefNode(self, node):
         ret = f"\nيرجع: {node.return_type}" if node.return_type else ""
         self.dot.node(str(id(node)), f"إجراء\n{node.identifier}{ret}", fillcolor='#CE93D8', fontcolor='white')
         for p in node.params:
-            self.add_node_and_edge(node, p, "معامل")
+            if p is not None:
+                self.add_node_and_edge(node, p, "معامل")
         for s in node.body:
-            self.add_node_and_edge(node, s, "جسم")
+            if s is not None:
+                self.add_node_and_edge(node, s, "جسم")
 
     def visit_ParamNode(self, node):
         self.dot.node(str(id(node)), f"معامل\n{node.identifier}", fillcolor='#E1BEE7')
-        self.add_node_and_edge(node, node.var_type, "نوع")
+        if node.var_type:
+            self.add_node_and_edge(node, node.var_type, "نوع")
 
     def visit_ModeBlockNode(self, node):
         self.dot.node(str(id(node)), f"وضع\n{node.mode_name}", fillcolor='#FFCC80')
         for s in node.on_start_statements:
-            self.add_node_and_edge(node, s, "عند_بدء")
+            if s is not None:
+                self.add_node_and_edge(node, s, "عند_بدء")
         for r in node.rules:
-            self.add_node_and_edge(node, r, "قاعدة")
+            if r is not None:
+                self.add_node_and_edge(node, r, "قاعدة")
 
     def visit_RuleBlockNode(self, node):
         self.dot.node(str(id(node)), f"قاعدة\n{node.identifier}", fillcolor='#FFE082')
         for d in node.local_declarations:
-            self.add_node_and_edge(node, d, "محلي")
-        self.add_node_and_edge(node, node.condition, "شرط")
-        for a in node.actions:
-            self.add_node_and_edge(node, a, "تنفيذ")
+            if d is not None:
+                self.add_node_and_edge(node, d, "محلي")
+        for s in node.statements:
+            if s is not None:
+                self.add_node_and_edge(node, s, "تنفيذ")
 
     def visit_CommandStmtNode(self, node):
-        val = node.value if isinstance(node.value, str) else "expr"
+        val = node.value if isinstance(node.value, str) else "تعبير"
         self.dot.node(str(id(node)), f"أمر\n{node.identifier} ← {val}", fillcolor='#FFCDD2')
         if isinstance(node.value, ASTNode):
             self.add_node_and_edge(node, node.value, "قيمة")
@@ -151,44 +174,47 @@ class ASTVisualizerVisitor:
     def visit_LogStmtNode(self, node):
         self.dot.node(str(id(node)), f"سجل\n\"{node.message}\"", fillcolor='#CFD8DC')
 
-    def visit_ExecProcStmtNode(self, node):
-        self.dot.node(str(id(node)), f"نفّذ إجراء\n{node.identifier}", fillcolor='#B39DDB')
-        for a in node.arguments:
-            self.add_node_and_edge(node, a, "وسيط")
-
     def visit_GotoStmtNode(self, node):
         self.dot.node(str(id(node)), f"انتقل إلى\n{node.target_mode}", fillcolor='#FFCCBC')
 
     def visit_WaitStmtNode(self, node):
         self.dot.node(str(id(node)), "انتظر", fillcolor='#B2EBF2')
-        self.add_node_and_edge(node, node.duration, "مدة")
+        if node.duration:
+            self.add_node_and_edge(node, node.duration, "مدة")
 
     def visit_AssignStmtNode(self, node):
         self.dot.node(str(id(node)), f"إسناد\n{node.identifier}", fillcolor='#FFAB91')
         if node.index_expr:
             self.add_node_and_edge(node, node.index_expr, "فهرس")
-        self.add_node_and_edge(node, node.expr, "قيمة")
+        if node.expr:
+            self.add_node_and_edge(node, node.expr, "قيمة")
 
     def visit_DefaultValStmtNode(self, node):
         self.dot.node(str(id(node)), f"قيمة افتراضية\n{node.value}", fillcolor='#ECEFF1')
 
     def visit_ExprStmtNode(self, node):
         self.dot.node(str(id(node)), "تعبير-جملة", fillcolor='#F5F5F5')
-        self.add_node_and_edge(node, node.expr, "تعبير")
+        if node.expr:
+            self.add_node_and_edge(node, node.expr, "تعبير")
 
     def visit_IfStmtNode(self, node):
         self.dot.node(str(id(node)), "اذا", fillcolor='#FFCC80')
-        self.add_node_and_edge(node, node.condition, "شرط")
+        if node.condition:
+            self.add_node_and_edge(node, node.condition, "شرط")
         for s in node.then_branch:
-            self.add_node_and_edge(node, s, "إذا_صح")
+            if s is not None:
+                self.add_node_and_edge(node, s, "إذا_صح")
         for s in node.else_branch:
-            self.add_node_and_edge(node, s, "والا")
+            if s is not None:
+                self.add_node_and_edge(node, s, "والا")
 
     def visit_WhileStmtNode(self, node):
         self.dot.node(str(id(node)), "طالما", fillcolor='#FFCC80')
-        self.add_node_and_edge(node, node.condition, "شرط")
+        if node.condition:
+            self.add_node_and_edge(node, node.condition, "شرط")
         for s in node.body:
-            self.add_node_and_edge(node, s, "جسم")
+            if s is not None:
+                self.add_node_and_edge(node, s, "جسم")
 
     def visit_ReturnStmtNode(self, node):
         self.dot.node(str(id(node)), "ارجع", fillcolor='#F8BBD0')
@@ -197,27 +223,35 @@ class ASTVisualizerVisitor:
 
     def visit_BinaryCondNode(self, node):
         self.dot.node(str(id(node)), node.op, fillcolor='#FFF176')
-        self.add_node_and_edge(node, node.left, "يسار")
-        self.add_node_and_edge(node, node.right, "يمين")
+        if node.left:
+            self.add_node_and_edge(node, node.left, "يسار")
+        if node.right:
+            self.add_node_and_edge(node, node.right, "يمين")
 
     def visit_NotCondNode(self, node):
         self.dot.node(str(id(node)), "ليس", fillcolor='#FFF176')
-        self.add_node_and_edge(node, node.operand, "معامل")
+        if node.operand:
+            self.add_node_and_edge(node, node.operand, "معامل")
 
     def visit_CompExprNode(self, node):
         self.dot.node(str(id(node)), f"مقارنة\n{node.op}", fillcolor='#FFF9C4')
-        self.add_node_and_edge(node, node.left, "يسار")
-        self.add_node_and_edge(node, node.right, "يمين")
+        if node.left:
+            self.add_node_and_edge(node, node.left, "يسار")
+        if node.right:
+            self.add_node_and_edge(node, node.right, "يمين")
 
     def visit_TemporalCondNode(self, node):
         self.dot.node(str(id(node)), "عند_استمرار", fillcolor='#B3E5FC')
-        self.add_node_and_edge(node, node.condition, "شرط")
-        self.add_node_and_edge(node, node.duration, "لمدة")
+        if node.condition:
+            self.add_node_and_edge(node, node.condition, "شرط")
+        if node.duration:
+            self.add_node_and_edge(node, node.duration, "لمدة")
 
     def visit_VotingCondNode(self, node):
         self.dot.node(str(id(node)), f"تصويت\n{node.threshold} من {node.total}", fillcolor='#DCEDC8')
         for c in node.comparisons:
-            self.add_node_and_edge(node, c, "مقارنة")
+            if c is not None:
+                self.add_node_and_edge(node, c, "مقارنة")
 
     def visit_BooleanLiteralNode(self, node):
         label = "صح" if node.value else "خطأ"
@@ -229,12 +263,15 @@ class ASTVisualizerVisitor:
 
     def visit_BinaryOpNode(self, node):
         self.dot.node(str(id(node)), f"عملية\n{node.op}", fillcolor='#FFFDE7')
-        self.add_node_and_edge(node, node.left, "يسار")
-        self.add_node_and_edge(node, node.right, "يمين")
+        if node.left:
+            self.add_node_and_edge(node, node.left, "يسار")
+        if node.right:
+            self.add_node_and_edge(node, node.right, "يمين")
 
     def visit_UnaryMinusNode(self, node):
         self.dot.node(str(id(node)), "سالب أحادي", fillcolor='#FFFDE7')
-        self.add_node_and_edge(node, node.operand, "معامل")
+        if node.operand:
+            self.add_node_and_edge(node, node.operand, "معامل")
 
     def visit_AggregateExprNode(self, node):
         self.dot.node(str(id(node)),
@@ -244,7 +281,8 @@ class ASTVisualizerVisitor:
     def visit_ProcCallExprNode(self, node):
         self.dot.node(str(id(node)), f"استدعاء\n{node.identifier}", fillcolor='#CE93D8')
         for a in node.arguments:
-            self.add_node_and_edge(node, a, "وسيط")
+            if a is not None:
+                self.add_node_and_edge(node, a, "وسيط")
 
     def visit_NumberLiteralNode(self, node):
         self.dot.node(str(id(node)), str(node.value), fillcolor='#F5F5F5')
@@ -260,40 +298,56 @@ class ASTVisualizerVisitor:
     def visit_EscalationDefNode(self, node):
         self.dot.node(str(id(node)), f"تصعيد\n{node.identifier}", fillcolor='#FFAB91')
         for lv in node.levels:
-            self.add_node_and_edge(node, lv, "مستوى")
+            if lv is not None:
+                self.add_node_and_edge(node, lv, "مستوى")
 
     def visit_EscalationLevelNode(self, node):
         self.dot.node(str(id(node)), f"مستوى\n{node.level_name}", fillcolor='#FFCCBC')
         for f in node.fields:
-            self.add_node_and_edge(node, f, "حقل")
+            if f is not None:
+                self.add_node_and_edge(node, f, "حقل")
 
     def visit_EscalationFieldNode(self, node):
         if isinstance(node.value, ASTNode) and not isinstance(node.value, DurationNode):
             self.dot.node(str(id(node)), f"تصعيد-حقل\n{node.key}", fillcolor='#FBE9E7')
-            self.add_node_and_edge(node, node.value, "إجراء")
+            if node.value:
+                self.add_node_and_edge(node, node.value, "إجراء")
         elif isinstance(node.value, DurationNode):
             self.dot.node(str(id(node)), f"{node.key}", fillcolor='#FBE9E7')
-            self.add_node_and_edge(node, node.value, "مدة")
+            if node.value:
+                self.add_node_and_edge(node, node.value, "مدة")
         else:
             self.dot.node(str(id(node)), f"{node.key}\n{node.value}", fillcolor='#FBE9E7')
 
     def visit_ReportDefNode(self, node):
         self.dot.node(str(id(node)), f"تقرير\n{node.identifier}", fillcolor='#F48FB1')
         for f in node.fields:
-            self.add_node_and_edge(node, f, "حقل")
+            if f is not None:
+                self.add_node_and_edge(node, f, "حقل")
         for c in node.content:
-            self.add_node_and_edge(node, c, "عنصر")
+            if c is not None:
+                self.add_node_and_edge(node, c, "عنصر")
 
     def visit_ReportFieldNode(self, node):
         if isinstance(node.value, ASTNode):
             self.dot.node(str(id(node)), f"حقل-تقرير\n{node.key}", fillcolor='#FCE4EC')
-            self.add_node_and_edge(node, node.value, "قيمة")
+            if node.value:
+                self.add_node_and_edge(node, node.value, "قيمة")
         else:
             self.dot.node(str(id(node)), f"{node.key}\n{node.value}", fillcolor='#FCE4EC')
 
     def visit_ScheduleSpecNode(self, node):
-        day = f" {node.day}" if node.day else ""
-        self.dot.node(str(id(node)), f"جدول\n{node.frequency}{day}\nالساعة {node.time}", fillcolor='#F8BBD0')
+        day = f" اليوم {node.target_day}" if node.target_day is not None else ""
+        last = " (آخر يوم)" if node.is_last_day else ""
+        time = f" الساعة {node.time_str}" if node.time_str else ""
+        interval = f" {node.interval_ms}ms" if node.interval_ms else ""
+        
+        if node.frequency == 'INTERVAL':
+            label = f"جدول\nكل{interval}"
+        else:
+            label = f"جدول\n{node.frequency}{day}{last}{time}"
+        
+        self.dot.node(str(id(node)), label, fillcolor='#F8BBD0')
 
     def visit_ReportItemNode(self, node):
         func = f"{node.function_name} " if node.function_name else ""
@@ -304,13 +358,38 @@ class ASTVisualizerVisitor:
     def visit_TransitionTableNode(self, node):
         self.dot.node(str(id(node)), "جدول الانتقالات", fillcolor='#FFD54F')
         for r in node.rules:
-            self.add_node_and_edge(node, r, "قاعدة")
+            if r is not None:
+                self.add_node_and_edge(node, r, "قاعدة")
 
     def visit_TransitionRuleNode(self, node):
         self.dot.node(str(id(node)), f"انتقال\n{node.from_mode} → {node.to_mode}", fillcolor='#FFF9C4')
 
     def visit_DurationNode(self, node):
         self.dot.node(str(id(node)), f"{node.value} {node.unit}", fillcolor='#B2EBF2')
+
+    def visit_ForStmtNode(self, node):
+        self.dot.node(str(id(node)), "لـ (for)", fillcolor='#FFCC80')
+        if node.init:
+            self.add_node_and_edge(node, node.init, "تهيئة")
+        if node.condition:
+            self.add_node_and_edge(node, node.condition, "شرط")
+        if node.update:
+            self.add_node_and_edge(node, node.update, "تحديث")
+        for s in node.body:
+            if s is not None:
+                self.add_node_and_edge(node, s, "جسم")
+
+    def visit_BreakStmtNode(self, node):
+        self.dot.node(str(id(node)), "اخرج (break)", fillcolor='#EF9A9A')
+
+    def visit_ContinueStmtNode(self, node):
+        self.dot.node(str(id(node)), "استمر (continue)", fillcolor='#EF9A9A')
+
+    def visit_ArrayLiteralNode(self, node):
+        self.dot.node(str(id(node)), "مصفوفة حرفية", fillcolor='#F5F5F5')
+        for i, elem in enumerate(node.elements):
+            if elem is not None:
+                self.add_node_and_edge(node, elem, f"[{i}]")
 
     def __getattr__(self, name):
         if name.startswith('visit_'):

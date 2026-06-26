@@ -1,7 +1,7 @@
 import llvmlite.ir as ir
 import llvmlite.binding as llvm
-from Ast.nodes import *
-from semantic.symbols import SensorSymbol, ActuatorSymbol, ProcedureSymbol
+from Frontend.Ast.nodes import *
+from Frontend.semantic.symbols import SensorSymbol, ActuatorSymbol, ProcedureSymbol
 
 class IRGenerator:
     def __init__(self, semantic_symbols=None, scan_cycle_ms=1000,
@@ -405,12 +405,24 @@ class IRGenerator:
         for stmt in rule.statements: self._emit_stmt(stmt)
         self._locals = saved_locals
 
+    # ✅ UPDATED: Handles optional initialization (Zero-init if no expr)
     def _emit_local_decl(self, node):
         if isinstance(node, (VarDeclNode, ConstDeclNode)):
             lt   = self._ast_type_to_llvm(node.var_type)
             slot = self.builder.alloca(lt, name=f"loc_{node.identifier}")
-            if node.expr: self.builder.store(self._cast(self._emit_expr(node.expr), lt), slot)
-            self._locals[node.identifier] = {'gv': slot, 'type': lt, 'kind': 'local'}
+            if node.expr:
+                self.builder.store(self._cast(self._emit_expr(node.expr), lt), slot)
+            else:
+                # Zero-initialize if no assignment was provided
+                if isinstance(lt, (ir.IntType, ir.DoubleType)):
+                    self.builder.store(ir.Constant(lt, 0), slot)
+            self._locals[node.identifier] = {
+                'gv': slot, 
+                'type': lt, 
+                'kind': 'local',
+                'is_array': isinstance(lt, ir.ArrayType),
+                'array_size': lt.count if isinstance(lt, ir.ArrayType) else 0
+            }
 
     def _queue_write(self, address: int, value: ir.Value):
         count   = self.builder.load(self.g_wq_count, "wqc")
@@ -557,11 +569,39 @@ class IRGenerator:
         self.builder.call(self._rt_mizan_actuator_cmd, [ir.Constant(self.i32, info['actuator_id']), wv])
         self._queue_write(info['address'], wv)
 
+    # 🔥 FIX: Connect Alerts to Escalation Chains
     def _stmt_AlertStmtNode(self, node: AlertStmtNode):
         lvl_map = {'مستوى_1': 1, 'مستوى_2': 2, 'مستوى_3': 3}
-        lvl = ir.Constant(self.i32, lvl_map.get(node.level, 1))
-        msg = self._str_const(f"[تنبيه {node.level}] {node.message}", "alert")
-        self.builder.call(self._rt_mizan_alert, [lvl, msg])
+        lvl_str = node.level
+        lvl_int = lvl_map.get(lvl_str, 1)
+        msg = self._str_const(f"[تنبيه {lvl_str}] {node.message}", "alert")
+        self.builder.call(self._rt_mizan_alert, [ir.Constant(self.i32, lvl_int), msg])
+        
+        # 🔥 Arm matching escalation chains when an alert is fired
+        for esc_name, esc_node in self.esc_defs.items():
+            esc_id = self.esc_ids[esc_name]
+            for level_node in esc_node.levels:
+                if level_node.level_name == lvl_str:
+                    tms = 0
+                    recv_str = ""
+                    msg_str = ""
+                    for f in level_node.fields:
+                        if f.key == 'TIMEOUT' and isinstance(f.value, DurationNode):
+                            tms = int(f.value.to_seconds() * 1000)
+                        elif f.key == 'RECEIVER':
+                            recv_str = f.value
+                        elif f.key == 'MESSAGE':
+                            msg_str = f.value
+                    
+                    recv_ptr = self._str_const(recv_str, "esc_recv")
+                    esc_msg_ptr = self._str_const(msg_str, "esc_msg")
+                    self.builder.call(self._rt_mizan_escalation_arm, [
+                        ir.Constant(self.i32, esc_id),
+                        ir.Constant(self.i32, lvl_int),
+                        ir.Constant(self.i64, tms),
+                        esc_msg_ptr,
+                        recv_ptr
+                    ])
 
     def _stmt_LogStmtNode(self, node: LogStmtNode):
         msg = self._str_const(node.message, "log")
@@ -588,6 +628,26 @@ class IRGenerator:
 
     def _stmt_DefaultValStmtNode(self, node: DefaultValStmtNode): pass
     def _stmt_ExprStmtNode(self, node: ExprStmtNode): self._emit_expr(node.expr)
+
+    # ✅ NEW: Handler for variables declared inside blocks (if/while)
+    def _stmt_VarDeclNode(self, node: VarDeclNode):
+        lt = self._ast_type_to_llvm(node.var_type)
+        slot = self.builder.alloca(lt, name=f"loc_{node.identifier}")
+        
+        if node.expr:
+            val = self._emit_expr(node.expr)
+            self.builder.store(self._cast(val, lt), slot)
+        else:
+            if isinstance(lt, (ir.IntType, ir.DoubleType)):
+                self.builder.store(ir.Constant(lt, 0), slot)
+                
+        self._locals[node.identifier] = {
+            'gv': slot, 
+            'type': lt, 
+            'kind': 'local',
+            'is_array': isinstance(lt, ir.ArrayType),
+            'array_size': lt.count if isinstance(lt, ir.ArrayType) else 0
+        }
 
     def _stmt_IfStmtNode(self, node: IfStmtNode):
         cond = self._emit_cond(node.condition)

@@ -90,7 +90,8 @@ actuatorField
     ;
 
 // ── Internal Variables & Constants ────────────────────────────────
-varDecl   : VAR_KW   ID COLON varType ASSIGN expr SEMI ;
+varDecl   : VAR_KW ID COLON varType (ASSIGN expr)? SEMI ;
+
 constDecl : CONST_KW ID COLON varType ASSIGN expr SEMI ;
 
 varType
@@ -142,6 +143,7 @@ statement
     | returnStmt
     | defaultValStmt
     | exprStmt
+    | varDecl      
     ;
 
 commandStmt   : CMD_KW ID COLON actuatorValue SEMI ;
